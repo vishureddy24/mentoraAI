@@ -134,7 +134,8 @@ export function ChatInterface() {
           {recommendations.recommendations.map((rec, index) => {
             const key = rec.toLowerCase().replace(/[^a-z\s-]/gi, '').trim();
             const choiceDetails = choiceMap[key];
-            const Icon = choiceDetails ? choiceDetails.icon : BrainCircuit;
+            if (!choiceDetails) return null; // FIX: Prevent rendering if choice is not found
+            const Icon = choiceDetails.icon;
             return (
               <Button key={index} variant="outline" onClick={() => handleChoiceClick(choiceDetails.action)} className="bg-background/80">
                 <Icon className="mr-2 h-4 w-4" />
