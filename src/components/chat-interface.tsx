@@ -42,7 +42,7 @@ export function ChatInterface() {
     {
       id: '1',
       role: 'model',
-      content: "Hi there, I'm Aura. I'm here to listen and support you. How are you feeling today? ✨",
+      content: "Hi there, I'm MentoraAI. I'm here to listen and support you. How are you feeling today? ✨",
     },
   ]);
   const [input, setInput] = useState('');
