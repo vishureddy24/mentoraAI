@@ -3,7 +3,7 @@
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Lightbulb } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 const puzzles = [
   {
@@ -24,8 +24,13 @@ const puzzles = [
 ];
 
 export function Puzzles() {
-  const [puzzle] = useState(() => puzzles[Math.floor(Math.random() * puzzles.length)]);
+  const [puzzle, setPuzzle] = useState(() => puzzles[Math.floor(Math.random() * puzzles.length)]);
   const [showAnswer, setShowAnswer] = useState(false);
+
+  useEffect(() => {
+    // This hook is currently not used for puzzle selection, but is kept for potential future use,
+    // like fetching puzzles from an API or cycling through them.
+  }, []);
 
   return (
     <Card className="w-full max-w-md bg-background/50">
