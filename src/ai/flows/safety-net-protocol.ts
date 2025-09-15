@@ -27,7 +27,20 @@ const prompt = ai.definePrompt({
   name: 'safetyNetProtocolPrompt',
   input: {schema: SafetyNetProtocolInputSchema},
   output: {schema: SafetyNetProtocolOutputSchema},
-  prompt: `It sounds like you are in a lot of pain. Please know there are people who can help right now. Here is a resource:\n\nNational Suicide Prevention Lifeline:\nPhone: 988\nWebsite: https://988lifeline.org\n\nCrisis Text Line:\nText HOME to 741741\n\nThe Trevor Project (for LGBTQ youth):\nPhone: 1-866-488-7386\nWebsite: https://www.thetrevorproject.org\n\nPlease reach out to one of these resources for immediate support.`,
+  prompt: `It sounds like you are in a lot of pain, and your safety is the most important thing. Please know there are people who can help you right now. Here are some resources you can reach out to for immediate support:
+
+National Suicide Prevention Lifeline:
+Phone: 988
+Website: https://988lifeline.org
+
+Crisis Text Line:
+Text HOME to 741741
+
+The Trevor Project (for LGBTQ youth):
+Phone: 1-866-488-7386
+Website: https://www.thetrevorproject.org
+
+Please, take a moment to connect with one of them. ❤️‍🩹`,
 });
 
 const safetyNetProtocolFlow = ai.defineFlow(

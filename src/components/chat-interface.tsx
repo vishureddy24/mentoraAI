@@ -23,11 +23,11 @@ import { Journal } from './coping/journal';
 import { Puzzles } from './coping/puzzles';
 
 const choiceMap: Record<string, { icon: React.ElementType; label: string; action: string }> = {
-  'creative puzzles': { icon: Puzzle, label: 'Creative Puzzles', action: 'start_puzzle' },
-  'smash-the-stress': { icon: Gamepad2, label: 'Smash-the-Stress', action: 'start_smash_stress' },
-  'guided breathing exercises': { icon: Wind, label: 'Breathing Exercise', action: 'start_breathing' },
-  'secure journaling': { icon: BrainCircuit, label: 'Anger Dump Journal', action: 'start_journaling' },
-  'just talk': { icon: MessageCircle, label: 'Just Talk', action: 'start_talk' },
+  'engage your mind with a puzzle': { icon: Puzzle, label: 'Creative Puzzles', action: 'start_puzzle' },
+  'release it in a quick game': { icon: Gamepad2, label: 'Smash-the-Stress', action: 'start_smash_stress' },
+  'try a gentle breathing exercise': { icon: Wind, label: 'Breathing Exercise', action: 'start_breathing' },
+  'write it all down privately': { icon: BrainCircuit, label: 'Anger Dump Journal', action: 'start_journaling' },
+  'just talk about it': { icon: MessageCircle, label: 'Just Talk', action: 'start_talk' },
 };
 
 const activityMap: Record<string, React.ElementType> = {
@@ -42,7 +42,7 @@ export function ChatInterface() {
     {
       id: '1',
       role: 'model',
-      content: "Hello. I'm MentoraAI. How are you feeling today?",
+      content: "Hello, I'm Aura. It's nice to meet you. How are you feeling today? ✨",
     },
   ]);
   const [input, setInput] = useState('');
@@ -132,14 +132,14 @@ export function ChatInterface() {
       const choices = (
         <div className="flex flex-wrap gap-2">
           {recommendations.recommendations.map((rec, index) => {
-            const key = rec.toLowerCase().replace(/[^a-z\s-]/gi, '').trim();
+            const key = rec.toLowerCase().replace(/[^\w\s-]/gi, '').trim();
             const choiceDetails = choiceMap[key];
-            if (!choiceDetails) return null; // FIX: Prevent rendering if choice is not found
+            if (!choiceDetails) return null;
             const Icon = choiceDetails.icon;
             return (
               <Button key={index} variant="outline" onClick={() => handleChoiceClick(choiceDetails.action)} className="bg-background/80">
                 <Icon className="mr-2 h-4 w-4" />
-                {rec}
+                {rec.replace(/ \p{Emoji}/gu, '')}
               </Button>
             );
           })}
