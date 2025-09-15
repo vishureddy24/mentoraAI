@@ -10,17 +10,19 @@ import Link from 'next/link';
 import { GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
+import { useRouter } from 'next/navigation';
 
 export function AuthForm() {
   const [isSignUp, setIsSignUp] = useState(false);
   const { toast } = useToast();
+  const router = useRouter();
 
   const handleGoogleSignIn = async () => {
     const provider = new GoogleAuthProvider();
     try {
       await signInWithPopup(auth, provider);
-      // On successful sign-in, redirect to the chat page.
-      window.location.href = '/chat';
+      // On successful sign-in, redirect to the chat page using Next.js router.
+      router.push('/chat');
     } catch (error) {
       console.error('Error during Google sign-in:', error);
       toast({
