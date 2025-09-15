@@ -15,18 +15,26 @@ import { analyzeUserSentiment } from '@/ai/flows/analyze-user-sentiment';
 import { provideEmpatheticResponse } from '@/ai/flows/provide-empathetic-response';
 import { recommendCopingMechanisms } from '@/ai/flows/recommend-coping-mechanisms';
 import { safetyNetProtocol } from '@/ai/flows/safety-net-protocol';
+import { handleUserChoice } from '@/ai/flows/handle-user-choice';
 
 import { BreathingExercise } from './coping/breathing-exercise';
 import { SmashTheStress } from './coping/smash-the-stress';
 import { Journal } from './coping/journal';
 import { Puzzles } from './coping/puzzles';
 
-const choiceMap: Record<string, { icon: React.ElementType; label: string; component: React.ElementType }> = {
-  'creative puzzles': { icon: Puzzle, label: 'Creative Puzzles', component: Puzzles },
-  'smash-the-stress': { icon: Gamepad2, label: 'Smash-the-Stress', component: SmashTheStress },
-  'guided breathing exercises': { icon: Wind, label: 'Breathing Exercise', component: BreathingExercise },
-  'secure journaling': { icon: BrainCircuit, label: 'Anger Dump Journal', component: Journal },
-  'just talk': { icon: MessageCircle, label: 'Just Talk', component: () => null },
+const choiceMap: Record<string, { icon: React.ElementType; label: string; action: string }> = {
+  'creative puzzles': { icon: Puzzle, label: 'Creative Puzzles', action: 'start_puzzle' },
+  'smash-the-stress': { icon: Gamepad2, label: 'Smash-the-Stress', action: 'start_smash_stress' },
+  'guided breathing exercises': { icon: Wind, label: 'Breathing Exercise', action: 'start_breathing' },
+  'secure journaling': { icon: BrainCircuit, label: 'Anger Dump Journal', action: 'start_journaling' },
+  'just talk': { icon: MessageCircle, label: 'Just Talk', action: 'start_talk' },
+};
+
+const activityMap: Record<string, React.ElementType> = {
+  puzzles: Puzzles,
+  'smash-the-stress': SmashTheStress,
+  breathing: BreathingExercise,
+  journal: Journal,
 };
 
 export function ChatInterface() {
@@ -48,32 +56,47 @@ export function ChatInterface() {
     }
   }, [messages]);
 
-  const handleChoice = (choiceKey: string) => {
-    const key = choiceKey.toLowerCase().replace(/[^a-z\s-]/gi, '').trim();
-    const choice = choiceMap[key];
-
+  const handleChoiceClick = async (action: string) => {
+    if (isLoading) return;
+    
     setMessages(prev => prev.filter(m => m.type !== 'choices'));
+    setIsLoading(true);
 
-    if (choice) {
-      if (choice.label === 'Just Talk') {
-        setMessages(prev => [
-          ...prev,
-          { id: Date.now().toString(), role: 'model', content: "Of course. I'm here to listen." },
-        ]);
-        return;
+    try {
+      const result = await handleUserChoice({ action });
+
+      const newMessages: Message[] = [{
+        id: Date.now().toString(),
+        role: 'model',
+        content: result.response,
+      }];
+      
+      if (result.activity) {
+        const ActivityComponent = activityMap[result.activity];
+        if (ActivityComponent) {
+          newMessages.push({
+            id: Date.now().toString() + '-activity',
+            role: 'model',
+            type: 'activity',
+            content: <ActivityComponent />,
+          });
+        }
       }
 
-      setMessages(prev => [
-        ...prev,
-        {
-          id: Date.now().toString(),
-          role: 'model',
-          type: 'activity',
-          content: <choice.component />,
-        },
-      ]);
+      setMessages(prev => [...prev, ...newMessages]);
+
+    } catch (error) {
+       console.error('AI Error:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Uh oh! Something went wrong.',
+        description: 'There was a problem processing your choice. Please try again.',
+      });
+    } finally {
+      setIsLoading(false);
     }
   };
+
 
   const handleSubmit = async (e?: FormEvent) => {
     if (e) e.preventDefault();
@@ -94,6 +117,7 @@ export function ChatInterface() {
           ...prev,
           { id: Date.now().toString() + '-safety', role: 'model', type: 'safety-net', content: safetyResponse.message },
         ]);
+        setIsLoading(false);
         return;
       }
 
@@ -112,7 +136,7 @@ export function ChatInterface() {
             const choiceDetails = choiceMap[key];
             const Icon = choiceDetails ? choiceDetails.icon : BrainCircuit;
             return (
-              <Button key={index} variant="outline" onClick={() => handleChoice(rec)} className="bg-background/80">
+              <Button key={index} variant="outline" onClick={() => handleChoiceClick(choiceDetails.action)} className="bg-background/80">
                 <Icon className="mr-2 h-4 w-4" />
                 {rec}
               </Button>
