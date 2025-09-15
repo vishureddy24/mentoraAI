@@ -7,14 +7,34 @@ import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { Chrome, Phone } from 'lucide-react';
 import Link from 'next/link';
+import { GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
+import { auth } from '@/lib/firebase';
+import { useToast } from '@/hooks/use-toast';
 
 export function AuthForm() {
   const [isSignUp, setIsSignUp] = useState(false);
+  const { toast } = useToast();
+
+  const handleGoogleSignIn = async () => {
+    const provider = new GoogleAuthProvider();
+    try {
+      await signInWithPopup(auth, provider);
+      // On successful sign-in, redirect to the chat page.
+      window.location.href = '/chat';
+    } catch (error) {
+      console.error('Error during Google sign-in:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Authentication Error',
+        description: 'Could not sign in with Google. Please try again.',
+      });
+    }
+  };
 
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-2 gap-4">
-        <Button variant="outline">
+        <Button variant="outline" onClick={handleGoogleSignIn}>
           <Chrome className="mr-2 h-4 w-4" />
           Google
         </Button>
