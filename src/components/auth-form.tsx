@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { Chrome, Phone } from 'lucide-react';
 import Link from 'next/link';
-import { GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
+import { GoogleAuthProvider, signInWithPopup, type FirebaseError } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
@@ -24,6 +24,13 @@ export function AuthForm() {
       // On successful sign-in, redirect to the chat page using Next.js router.
       router.push('/chat');
     } catch (error) {
+      const firebaseError = error as FirebaseError;
+      // Don't show an error toast if the user simply closes the popup.
+      if (firebaseError.code === 'auth/cancelled-popup-request' || firebaseError.code === 'auth/popup-closed-by-user') {
+        console.log('Sign-in popup closed by user.');
+        return;
+      }
+      
       console.error('Error during Google sign-in:', error);
       toast({
         variant: 'destructive',
