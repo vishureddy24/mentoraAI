@@ -7,7 +7,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Textarea } from '@/components/ui/textarea';
 import { Bot, BrainCircuit, Gamepad2, Loader2, MessageCircle, Send, Wind, Puzzle } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import type { Message, CopingMechanism } from '@/lib/types';
+import type { Message } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { Logo } from './icons/logo';
 
@@ -22,10 +22,10 @@ import { Journal } from './coping/journal';
 import { Puzzles } from './coping/puzzles';
 
 const choiceMap: Record<string, { icon: React.ElementType; label: string; component: React.ElementType }> = {
-  'creative puzzle': { icon: Puzzle, label: 'Creative Puzzle', component: Puzzles },
-  'quick game': { icon: Gamepad2, label: 'Smash-the-Stress', component: SmashTheStress },
-  'breathing exercise': { icon: Wind, label: 'Breathing Exercise', component: BreathingExercise },
-  'anger dump journal': { icon: BrainCircuit, label: 'Anger Dump Journal', component: Journal },
+  'creative puzzles': { icon: Puzzle, label: 'Creative Puzzles', component: Puzzles },
+  'smash-the-stress': { icon: Gamepad2, label: 'Smash-the-Stress', component: SmashTheStress },
+  'guided breathing exercises': { icon: Wind, label: 'Breathing Exercise', component: BreathingExercise },
+  'secure journaling': { icon: BrainCircuit, label: 'Anger Dump Journal', component: Journal },
   'just talk': { icon: MessageCircle, label: 'Just Talk', component: () => null },
 };
 
@@ -49,7 +49,8 @@ export function ChatInterface() {
   }, [messages]);
 
   const handleChoice = (choiceKey: string) => {
-    const choice = choiceMap[choiceKey.toLowerCase().replace(/[^a-z\s]/gi, '').trim()];
+    const key = choiceKey.toLowerCase().replace(/[^a-z\s-]/gi, '').trim();
+    const choice = choiceMap[key];
 
     setMessages(prev => prev.filter(m => m.type !== 'choices'));
 
@@ -74,8 +75,8 @@ export function ChatInterface() {
     }
   };
 
-  const handleSubmit = async (e: FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async (e?: FormEvent) => {
+    if (e) e.preventDefault();
     if (!input.trim() || isLoading) return;
 
     const userInput = input;
@@ -107,7 +108,7 @@ export function ChatInterface() {
       const choices = (
         <div className="flex flex-wrap gap-2">
           {recommendations.recommendations.map((rec, index) => {
-            const key = rec.toLowerCase().replace(/[^a-z\s]/gi, '').trim();
+            const key = rec.toLowerCase().replace(/[^a-z\s-]/gi, '').trim();
             const choiceDetails = choiceMap[key];
             const Icon = choiceDetails ? choiceDetails.icon : BrainCircuit;
             return (
@@ -213,7 +214,7 @@ export function ChatInterface() {
             onKeyDown={e => {
               if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault();
-                handleSubmit(e);
+                handleSubmit();
               }
             }}
             rows={1}
