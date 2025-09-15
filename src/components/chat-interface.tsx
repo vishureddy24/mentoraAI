@@ -23,17 +23,17 @@ import { Journal } from './coping/journal';
 import { Puzzles } from './coping/puzzles';
 
 const choiceMap: Record<string, { icon: React.ElementType; label: string; action: string }> = {
+  'try a gentle breathing exercise': { icon: Wind, label: 'Breathing Exercise', action: 'start_breathing' },
   'engage your mind with a puzzle': { icon: Puzzle, label: 'Creative Puzzles', action: 'start_puzzle' },
   'release it in a quick game': { icon: Gamepad2, label: 'Smash-the-Stress', action: 'start_smash_stress' },
-  'try a gentle breathing exercise': { icon: Wind, label: 'Breathing Exercise', action: 'start_breathing' },
   'write it all down privately': { icon: BrainCircuit, label: 'Anger Dump Journal', action: 'start_journaling' },
   'just talk about it': { icon: MessageCircle, label: 'Just Talk', action: 'start_talk' },
 };
 
 const activityMap: Record<string, React.ElementType> = {
+  breathing: BreathingExercise,
   puzzles: Puzzles,
   'smash-the-stress': SmashTheStress,
-  breathing: BreathingExercise,
   journal: Journal,
 };
 
@@ -42,7 +42,7 @@ export function ChatInterface() {
     {
       id: '1',
       role: 'model',
-      content: "Hello, I'm Aura. It's nice to meet you. How are you feeling today? ✨",
+      content: "Hi there, I'm Aura. I'm here to listen and support you. How are you feeling today? ✨",
     },
   ]);
   const [input, setInput] = useState('');
@@ -56,17 +56,25 @@ export function ChatInterface() {
     }
   }, [messages]);
 
-  const handleChoiceClick = async (action: string) => {
+  const handleChoiceClick = async (action: string, label: string) => {
     if (isLoading) return;
+
+    // Add a user message to reflect their choice
+    const userChoiceMessage: Message = {
+      id: Date.now().toString(),
+      role: 'user',
+      content: `I'd like to try the ${label.toLowerCase()}.`,
+    };
     
-    setMessages(prev => prev.filter(m => m.type !== 'choices'));
+    // Remove the old choice buttons
+    setMessages(prev => [...prev.filter(m => m.type !== 'choices'), userChoiceMessage]);
     setIsLoading(true);
 
     try {
       const result = await handleUserChoice({ action });
 
-      const newMessages: Message[] = [{
-        id: Date.now().toString(),
+      const newModelMessages: Message[] = [{
+        id: Date.now().toString() + '-response',
         role: 'model',
         content: result.response,
       }];
@@ -74,7 +82,7 @@ export function ChatInterface() {
       if (result.activity) {
         const ActivityComponent = activityMap[result.activity];
         if (ActivityComponent) {
-          newMessages.push({
+          newModelMessages.push({
             id: Date.now().toString() + '-activity',
             role: 'model',
             type: 'activity',
@@ -83,7 +91,7 @@ export function ChatInterface() {
         }
       }
 
-      setMessages(prev => [...prev, ...newMessages]);
+      setMessages(prev => [...prev, ...newModelMessages]);
 
     } catch (error) {
        console.error('AI Error:', error);
@@ -132,12 +140,12 @@ export function ChatInterface() {
       const choices = (
         <div className="flex flex-wrap gap-2">
           {recommendations.recommendations.map((rec, index) => {
-            const key = rec.toLowerCase().replace(/[^\w\s-]/gi, '').trim();
+            const key = rec.toLowerCase().replace(/ \p{Emoji}/gu, '').replace(/[^\w\s-]/gi, '').trim();
             const choiceDetails = choiceMap[key];
             if (!choiceDetails) return null;
             const Icon = choiceDetails.icon;
             return (
-              <Button key={index} variant="outline" onClick={() => handleChoiceClick(choiceDetails.action)} className="bg-background/80">
+              <Button key={index} variant="outline" onClick={() => handleChoiceClick(choiceDetails.action, choiceDetails.label)} className="bg-background/80">
                 <Icon className="mr-2 h-4 w-4" />
                 {rec.replace(/ \p{Emoji}/gu, '')}
               </Button>
@@ -167,7 +175,8 @@ export function ChatInterface() {
         title: 'Uh oh! Something went wrong.',
         description: 'There was a problem communicating with the AI. Please try again.',
       });
-      setMessages(prev => prev.slice(0, prev.length - (prev[prev.length - 1].role === 'user' ? 0 : 1)));
+      // Rollback the user message if the AI fails
+      setMessages(prev => prev.filter(m => m.id !== userMessage.id));
     } finally {
       setIsLoading(false);
     }
