@@ -111,7 +111,7 @@ export function ChatInterface() {
     try {
       const sentiment = await analyzeUserSentiment({ message: userInput });
 
-      if (sentiment.intensity.toLowerCase() === 'severe' || sentiment.keywords.length > 0) {
+      if (sentiment.isCritical) {
         const safetyResponse = await safetyNetProtocol({});
         setMessages(prev => [
           ...prev,
