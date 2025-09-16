@@ -10,6 +10,7 @@
 
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
+import { retryWithExponentialBackoff } from '../utils';
 
 const AnalyzeUserSentimentInputSchema = z.object({
   message: z.string().describe('The user message to analyze.'),
@@ -59,7 +60,7 @@ const analyzeUserSentimentFlow = ai.defineFlow(
     outputSchema: AnalyzeUserSentimentOutputSchema,
   },
   async input => {
-    const {output} = await analyzeUserSentimentPrompt(input);
-    return output!;
+    const result = await retryWithExponentialBackoff(async () => analyzeUserSentimentPrompt(input));
+    return result.output!;
   }
 );

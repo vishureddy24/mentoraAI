@@ -10,6 +10,7 @@
 
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
+import { retryWithExponentialBackoff } from '../utils';
 
 const SafetyNetProtocolInputSchema = z.object({})
 export type SafetyNetProtocolInput = z.infer<typeof SafetyNetProtocolInputSchema>;
@@ -50,7 +51,7 @@ const safetyNetProtocolFlow = ai.defineFlow(
     outputSchema: SafetyNetProtocolOutputSchema,
   },
   async input => {
-    const {output} = await prompt(input);
-    return output!;
+    const result = await retryWithExponentialBackoff(async () => prompt(input));
+    return result.output!;
   }
 );

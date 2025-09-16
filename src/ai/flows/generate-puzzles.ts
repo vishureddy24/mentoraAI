@@ -9,6 +9,7 @@
 
 import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
+import { retryWithExponentialBackoff } from '../utils';
 
 const PuzzleSchema = z.object({
   type: z.string().describe("The category of the puzzle (e.g., 'Riddle', 'Logic Puzzle', 'Word Challenge')."),
@@ -46,7 +47,7 @@ const generatePuzzlesFlow = ai.defineFlow(
     outputSchema: GeneratePuzzlesOutputSchema,
   },
   async () => {
-    const { output } = await generatePuzzlesPrompt();
-    return output!;
+    const result = await retryWithExponentialBackoff(async () => generatePuzzlesPrompt());
+    return result.output!;
   }
 );

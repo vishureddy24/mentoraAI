@@ -11,6 +11,7 @@
 
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
+import { retryWithExponentialBackoff } from '../utils';
 
 const ProvideEmpatheticResponseInputSchema = z.object({
   userInput: z.string().describe('The user input message.'),
@@ -69,7 +70,7 @@ const provideEmpatheticResponseFlow = ai.defineFlow(
     outputSchema: ProvideEmpatheticResponseOutputSchema,
   },
   async input => {
-    const {output} = await prompt(input);
-    return output!;
+    const result = await retryWithExponentialBackoff(async () => prompt(input));
+    return result.output!;
   }
 );

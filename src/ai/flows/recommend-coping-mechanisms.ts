@@ -10,6 +10,7 @@
 
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
+import { retryWithExponentialBackoff } from '../utils';
 
 const RecommendCopingMechanismsInputSchema = z.object({
   emotion: z.string().describe("The user's detected emotion (e.g., Sad, Angry, Neutral, Happy)."),
@@ -69,7 +70,7 @@ const recommendCopingMechanismsFlow = ai.defineFlow(
     outputSchema: RecommendCopingMechanismsOutputSchema,
   },
   async input => {
-    const {output} = await prompt(input);
-    return output!;
+    const result = await retryWithExponentialBackoff(async () => prompt(input));
+    return result.output!;
   }
 );
