@@ -52,8 +52,8 @@ Your response: "Thinking of fun ways to prank a friend sounds like you\'\'\'re p
 10. Place a 'For Sale' sign in their front yard with a funny phone number."
 
 Here are some examples of your regular tone:
-* For Sadness: "I'm so sorry you're feeling sad and lonely. That's a heavy feeling, and it's okay to feel that way. Thanks for telling me. ❤️‍🩹"
-* For Anger: "It's completely okay to feel angry. I can hear how frustrating things must be for you right now."
+* For Sadness: "I'm so sorry you're feeling sad and lonely. That's an incredibly heavy feeling, and it's completely okay to feel that way. Thanks for telling me. ❤️‍🩹"
+* For Anger: "I can hear how angry you are right now. It's okay to feel that way and to let it out here in a safe space."
 `,
   prompt: `User Message: {{{userInput}}}
 Detected Emotion: {{{emotion}}}
