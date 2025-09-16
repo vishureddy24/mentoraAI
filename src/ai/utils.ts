@@ -18,15 +18,15 @@ export async function retryWithExponentialBackoff<T>(
       try {
         return await fn();
       } catch (error: any) {
-        // The Gemini API error for overloaded models has a status code of 503, but the Genkit
+        // The Gemini API error for overloaded models or rate limits, but the Genkit
         // library may not expose the status code directly. We check the error message instead.
-        if (error.message && (error.message.includes('503') || error.message.toLowerCase().includes('model is overloaded'))) {
+        if (error.message && (error.message.includes('503') || error.message.includes('429') ||error.message.toLowerCase().includes('model is overloaded') || error.message.toLowerCase().includes('too many requests'))) {
             retries++;
           if (retries >= maxRetries) {
             console.error('Max retries reached. Failing.');
             throw error;
           }
-          console.log(`Model overloaded. Retrying in ${delay / 1000} seconds... (Attempt ${retries}/${maxRetries})`);
+          console.log(`Model overloaded or rate limited. Retrying in ${delay / 1000} seconds... (Attempt ${retries}/${maxRetries})`);
           await new Promise(resolve => setTimeout(resolve, delay));
           delay *= 2; // Double the delay for the next attempt
         } else {
