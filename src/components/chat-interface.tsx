@@ -11,9 +11,7 @@ import type { Message } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { Logo } from './icons/logo';
 
-import { analyzeUserSentiment } from '@/ai/flows/analyze-user-sentiment';
-import { provideEmpatheticResponse } from '@/ai/flows/provide-empathetic-response';
-import { recommendCopingMechanisms } from '@/ai/flows/recommend-coping-mechanisms';
+import { handleChatTurn } from '@/ai/flows/handle-chat-turn';
 import { safetyNetProtocol } from '@/ai/flows/safety-net-protocol';
 import { handleUserChoice } from '@/ai/flows/handle-user-choice';
 
@@ -25,11 +23,13 @@ import { Puzzles } from './coping/puzzles';
 const choiceMap: Record<string, { icon: React.ElementType; label: string; action: string }> = {
   "do a short, guided breathing exercise to find some calm?": { icon: Wind, label: 'Breathing Exercise', action: 'start_breathing' },
   "try a simple creative puzzle to distract your mind?": { icon: Puzzle, label: 'Creative Puzzles', action: 'start_puzzle' },
-  "release it in the 'smash the stress!' ar game?": { icon: Gamepad2, label: 'Smash-the-Stress', action: 'start_smash_stress' },
+  "release it in the 'smash the stress!' ar game?": { icon: Gamepad2, label: 'Smash the Stress!', action: 'start_smash_stress' },
   "write it all out in a private 'anger journal'?": { icon: BrainCircuit, label: 'Anger Dump Journal', action: 'start_journaling' },
   "or would you prefer to just talk about what's on your mind?": { icon: MessageCircle, label: 'Just Talk', action: 'start_talk' },
   "or just tell me what happened?": { icon: MessageCircle, label: 'Just Talk', action: 'start_talk' },
+  "just talk": { icon: MessageCircle, label: 'Just Talk', action: 'start_talk' },
 };
+
 
 const activityMap: Record<string, React.ElementType> = {
   breathing: BreathingExercise,
@@ -60,14 +60,12 @@ export function ChatInterface() {
   const handleChoiceClick = async (action: string, label: string) => {
     if (isLoading) return;
 
-    // Add a user message to reflect their choice
     const userChoiceMessage: Message = {
       id: Date.now().toString(),
       role: 'user',
       content: `I'd like to try: ${label}`,
     };
     
-    // Remove the old choice buttons
     setMessages(prev => [...prev.filter(m => m.type !== 'choices'), userChoiceMessage]);
     setIsLoading(true);
 
@@ -113,14 +111,14 @@ export function ChatInterface() {
 
     const userInput = input;
     const userMessage: Message = { id: Date.now().toString(), role: 'user', content: userInput };
-    setMessages(prev => [...prev, userMessage]);
+    setMessages(prev => [...prev.filter(m => m.type !== 'choices'), userMessage]);
     setInput('');
     setIsLoading(true);
 
     try {
-      const sentiment = await analyzeUserSentiment({ message: userInput });
+      const result = await handleChatTurn({ message: userInput });
 
-      if (sentiment.isCritical) {
+      if (result.isCritical) {
         const safetyResponse = await safetyNetProtocol({});
         setMessages(prev => [
           ...prev,
@@ -129,46 +127,49 @@ export function ChatInterface() {
         setIsLoading(false);
         return;
       }
+      
+      const empatheticResponseMessage: Message = {
+        id: Date.now().toString() + '-empathy',
+        role: 'model',
+        content: result.empatheticResponse,
+      };
 
-      const empatheticResponse = await provideEmpatheticResponse({ userInput, emotion: sentiment.emotion });
-      setMessages(prev => [
-        ...prev,
-        { id: Date.now().toString() + '-empathy', role: 'model', content: empatheticResponse.empatheticResponse },
-      ]);
+      setMessages(prev => [...prev, empatheticResponseMessage]);
 
-      const recommendations = await recommendCopingMechanisms({ emotion: sentiment.emotion, userInput });
+      if (result.recommendations && result.recommendations.length > 0) {
+        const choices = (
+          <div className="flex flex-wrap gap-2">
+            {result.recommendations.map((rec, index) => {
+              const key = rec.toLowerCase().replace(/ \p{Emoji}/gu, '').replace(/[^\w\s-?']/gi, '').trim();
+              const choiceDetails = choiceMap[key];
+              if (!choiceDetails) {
+                console.warn(`No choice mapping found for recommendation: "${rec}" (key: "${key}")`);
+                return null;
+              }
+              const Icon = choiceDetails.icon;
+              return (
+                <Button key={index} variant="outline" onClick={() => handleChoiceClick(choiceDetails.action, choiceDetails.label)} className="bg-background/80 text-left h-auto whitespace-normal">
+                  <Icon className="mr-2 h-4 w-4" />
+                  {rec.replace(/ \p{Emoji}/gu, '')}
+                </Button>
+              );
+            })}
+          </div>
+        );
 
-      const choices = (
-        <div className="flex flex-wrap gap-2">
-          {recommendations.recommendations.map((rec, index) => {
-            const key = rec.toLowerCase().replace(/ \p{Emoji}/gu, '').replace(/[^\w\s-?']/gi, '').trim();
-            const choiceDetails = choiceMap[key];
-            if (!choiceDetails) return null;
-            const Icon = choiceDetails.icon;
-            return (
-              <Button key={index} variant="outline" onClick={() => handleChoiceClick(choiceDetails.action, rec.replace(/ \p{Emoji}/gu, ''))} className="bg-background/80 text-left h-auto whitespace-normal">
-                <Icon className="mr-2 h-4 w-4" />
-                {rec.replace(/ \p{Emoji}/gu, '')}
-              </Button>
-            );
-          })}
-        </div>
-      );
-
-      setMessages(prev => [
-        ...prev,
-        {
+        const recommendationsMessage: Message = {
           id: Date.now().toString() + '-choices',
           role: 'model',
           type: 'choices',
           content: (
             <>
-              <p className="mb-4">{recommendations.introductoryText}</p>
+              <p className="mb-4">{result.introductoryText}</p>
               {choices}
             </>
           ),
-        },
-      ]);
+        };
+        setMessages(prev => [...prev, recommendationsMessage]);
+      }
     } catch (error) {
       console.error('AI Error:', error);
       toast({
