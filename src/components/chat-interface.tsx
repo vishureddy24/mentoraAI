@@ -18,7 +18,7 @@ import { safetyNetProtocol } from '@/ai/flows/safety-net-protocol';
 import { handleUserChoice } from '@/ai/flows/handle-user-choice';
 
 import { BreathingExercise } from './coping/breathing-exercise';
-import { SmashTheStress } from './coping/smash-the-stress';
+import { CrystalShatterGame } from './coping/crystal-shatter';
 import { Journal } from './coping/journal';
 import { Puzzles } from './coping/puzzles';
 
@@ -34,7 +34,7 @@ const choiceMap: Record<string, { icon: React.ElementType; label: string; action
 const activityMap: Record<string, React.ElementType> = {
   breathing: BreathingExercise,
   puzzles: Puzzles,
-  'smash-the-stress': SmashTheStress,
+  'crystal-shatter': CrystalShatterGame,
   journal: Journal,
 };
 

@@ -43,8 +43,8 @@ const handleUserChoiceFlow = ai.defineFlow(
         };
       case 'start_smash_stress':
         return {
-          response: "Let's smash some stress! This AR experience uses your camera to overlay virtual objects on your world for you to break. Have fun!",
-          activity: 'smash-the-stress',
+          response: "Let's try Crystal Shatter. I'll place some fragile crystals in your room. Tap them to release the stress they hold.",
+          activity: 'crystal-shatter',
         };
       case 'start_journaling':
         return {
