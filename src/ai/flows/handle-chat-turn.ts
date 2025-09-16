@@ -21,9 +21,15 @@ import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
 import { retryWithExponentialBackoff } from '../utils';
 
-// Input schema remains simple, just the user's message.
+// Input schema now includes the chat history.
+const MessageSchema = z.object({
+  role: z.enum(['user', 'model']),
+  content: z.string(),
+});
+
 const HandleChatTurnInputSchema = z.object({
-  message: z.string().describe('The user message to analyze.'),
+  message: z.string().describe('The latest user message to analyze.'),
+  history: z.array(MessageSchema).describe('The history of the conversation so far.'),
 });
 export type HandleChatTurnInput = z.infer<typeof HandleChatTurnInputSchema>;
 
@@ -65,6 +71,8 @@ You are MentoraAI, a multilingual AI wellness companion operating under a strict
 
 Your user is a teenager (between 13-19 years old). Always tailor your language, tone, and examples to be relatable and supportive for this age group.
 
+You must consider the entire conversation history provided to understand the full context of the user's feelings and situation.
+
 Analyze the user's message based on the following protocol:
 
 **STEP 1: Critical Keyword Scan & Safety Net**
@@ -77,7 +85,7 @@ Analyze the user's message based on the following protocol:
   - Your role is to be warm, patient, caring, gentle, and encouraging. Always validate the user's feelings first. Use simple, modern, and relatable language, including appropriate emojis.
   - **Safety Mandate:** If a user asks for ideas that are negative, harmful, or could be interpreted as such (like pranks involving fights or distress), you MUST NOT fulfill the request. Instead, gently reframe the user's intent toward a positive, fun, and safe alternative, and then provide a numbered list of 10 fun, safe ideas.
 - **Task B: Recommend Coping Mechanisms.**
-  - Classify the primary emotion: Sad, Angry, Neutral, Happy.
+  - Classify the primary emotion from the latest message in context of the conversation: Sad, Angry, Neutral, Happy.
   - Provide a gentle introductory sentence in the user's language based on the emotion.
     - Sadness: "I'm here with you. If you feel up to it, would you like to..."
     - Anger: "You don't have to hold that in. Would you like to..."
@@ -86,6 +94,11 @@ Analyze the user's message based on the following protocol:
     - **If 'Sad'**: Offer ["Try a simple creative puzzle to distract your mind? 🧠", "Do a short, guided breathing exercise to find some calm? 🧘", "Or would you prefer to just talk about what's on your mind? 💬"]
     - **If 'Angry'**: Offer ["Release it in the 'Smash the Stress!' AR game? 💥", "Write it all out in a private 'anger journal'? 📝", "Or just tell me what happened? 💬"]
     - **For any other emotion**: Provide a single, simple option: "Just talk".
+
+Conversation History:
+{{#each history}}
+  **{{role}}**: {{content}}
+{{/each}}
 
 Analyze the following message according to the full protocol:
 User Message: {{{message}}}

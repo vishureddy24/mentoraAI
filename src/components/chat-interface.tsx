@@ -111,12 +111,21 @@ export function ChatInterface() {
 
     const userInput = input;
     const userMessage: Message = { id: Date.now().toString(), role: 'user', content: userInput };
-    setMessages(prev => [...prev.filter(m => m.type !== 'choices'), userMessage]);
+    
+    const currentMessages = [...messages.filter(m => m.type !== 'choices'), userMessage];
+    setMessages(currentMessages);
     setInput('');
     setIsLoading(true);
 
     try {
-      const result = await handleChatTurn({ message: userInput });
+      const history = currentMessages
+        .filter(m => typeof m.content === 'string' && !m.type)
+        .map(m => ({
+            role: m.role,
+            content: m.content as string,
+        }));
+      
+      const result = await handleChatTurn({ message: userInput, history: history.slice(0, -1) });
 
       if (result.isCritical) {
         const safetyResponse = await safetyNetProtocol({});

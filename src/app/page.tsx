@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { AuthForm } from '@/components/auth-form';
 import { Logo } from '@/components/icons/logo';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 
 export default function LoginPage() {
   return (
@@ -19,12 +20,15 @@ export default function LoginPage() {
             <AuthForm />
           </CardContent>
         </Card>
-        <p className="mt-4 text-center text-sm text-muted-foreground">
-          Ready to chat?{' '}
+        <div className="mt-4 text-center text-sm text-muted-foreground flex justify-center gap-4">
           <Link href="/chat" className="font-semibold text-primary underline-offset-4 hover:underline">
             Start as a guest
           </Link>
-        </p>
+          <span className="text-border">|</span>
+          <Link href="/dashboard" className="font-semibold text-primary underline-offset-4 hover:underline">
+            Go to Dashboard
+          </Link>
+        </div>
       </div>
     </main>
   );
