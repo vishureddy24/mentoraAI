@@ -3,7 +3,7 @@ import {googleAI} from '@genkit-ai/googleai';
 
 export const ai = genkit({
   plugins: [googleAI()],
-  model: 'googleai/gemini-1.5-flash-latest',
+  model: 'googleai/gemini-1.5-pro-latest',
   safetySettings: [
     {
       category: 'HARM_CATEGORY_HATE_SPEECH',
