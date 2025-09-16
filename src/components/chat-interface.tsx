@@ -135,7 +135,7 @@ export function ChatInterface() {
         { id: Date.now().toString() + '-empathy', role: 'model', content: empatheticResponse.empatheticResponse },
       ]);
 
-      const recommendations = await recommendCopingMechanisms({ emotion: sentiment.emotion });
+      const recommendations = await recommendCopingMechanisms({ emotion: sentiment.emotion, userInput });
 
       const choices = (
         <div className="flex flex-wrap gap-2">
@@ -162,7 +162,7 @@ export function ChatInterface() {
           type: 'choices',
           content: (
             <>
-              <p className="mb-4">I'm here with you. Would you like to...</p>
+              <p className="mb-4">{recommendations.introductoryText}</p>
               {choices}
             </>
           ),
