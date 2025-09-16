@@ -21,8 +21,8 @@ export function AuthForm() {
     const provider = new GoogleAuthProvider();
     try {
       await signInWithPopup(auth, provider);
-      // On successful sign-in, redirect to the chat page using Next.js router.
-      router.push('/chat');
+      // On successful sign-in, redirect to the dashboard page using Next.js router.
+      router.push('/dashboard');
     } catch (error) {
       const firebaseError = error as FirebaseError;
       // Don't show an error toast if the user simply closes the popup.
@@ -72,7 +72,7 @@ export function AuthForm() {
         <Input id="password" type="password" placeholder="••••••••" />
       </div>
 
-      <Link href="/chat">
+      <Link href="/dashboard">
         <Button className="w-full">{isSignUp ? 'Create Account' : 'Sign In'}</Button>
       </Link>
 

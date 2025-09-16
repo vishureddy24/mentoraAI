@@ -20,13 +20,9 @@ export default function LoginPage() {
             <AuthForm />
           </CardContent>
         </Card>
-        <div className="mt-4 text-center text-sm text-muted-foreground flex justify-center gap-4">
+        <div className="mt-4 text-center text-sm text-muted-foreground">
           <Link href="/chat" className="font-semibold text-primary underline-offset-4 hover:underline">
             Start as a guest
-          </Link>
-          <span className="text-border">|</span>
-          <Link href="/dashboard" className="font-semibold text-primary underline-offset-4 hover:underline">
-            Go to Dashboard
           </Link>
         </div>
       </div>
