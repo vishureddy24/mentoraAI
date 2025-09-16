@@ -23,11 +23,12 @@ import { Journal } from './coping/journal';
 import { Puzzles } from './coping/puzzles';
 
 const choiceMap: Record<string, { icon: React.ElementType; label: string; action: string }> = {
-  'try a gentle breathing exercise': { icon: Wind, label: 'Breathing Exercise', action: 'start_breathing' },
-  'engage your mind with a puzzle': { icon: Puzzle, label: 'Creative Puzzles', action: 'start_puzzle' },
-  'release it in a quick game': { icon: Gamepad2, label: 'Smash-the-Stress', action: 'start_smash_stress' },
-  'write it all down privately': { icon: BrainCircuit, label: 'Anger Dump Journal', action: 'start_journaling' },
-  'just talk about it': { icon: MessageCircle, label: 'Just Talk', action: 'start_talk' },
+  "do a short, guided breathing exercise to find some calm?": { icon: Wind, label: 'Breathing Exercise', action: 'start_breathing' },
+  "try a simple creative puzzle to distract your mind?": { icon: Puzzle, label: 'Creative Puzzles', action: 'start_puzzle' },
+  "release it in the 'smash the stress!' ar game?": { icon: Gamepad2, label: 'Smash-the-Stress', action: 'start_smash_stress' },
+  "write it all out in a private 'anger journal'?": { icon: BrainCircuit, label: 'Anger Dump Journal', action: 'start_journaling' },
+  "or would you prefer to just talk about what's on your mind?": { icon: MessageCircle, label: 'Just Talk', action: 'start_talk' },
+  "or just tell me what happened?": { icon: MessageCircle, label: 'Just Talk', action: 'start_talk' },
 };
 
 const activityMap: Record<string, React.ElementType> = {
@@ -63,7 +64,7 @@ export function ChatInterface() {
     const userChoiceMessage: Message = {
       id: Date.now().toString(),
       role: 'user',
-      content: `I'd like to try the ${label.toLowerCase()}.`,
+      content: `I'd like to try: ${label}`,
     };
     
     // Remove the old choice buttons
@@ -140,12 +141,12 @@ export function ChatInterface() {
       const choices = (
         <div className="flex flex-wrap gap-2">
           {recommendations.recommendations.map((rec, index) => {
-            const key = rec.toLowerCase().replace(/ \p{Emoji}/gu, '').replace(/[^\w\s-]/gi, '').trim();
+            const key = rec.toLowerCase().replace(/ \p{Emoji}/gu, '').replace(/[^\w\s-?']/gi, '').trim();
             const choiceDetails = choiceMap[key];
             if (!choiceDetails) return null;
             const Icon = choiceDetails.icon;
             return (
-              <Button key={index} variant="outline" onClick={() => handleChoiceClick(choiceDetails.action, choiceDetails.label)} className="bg-background/80">
+              <Button key={index} variant="outline" onClick={() => handleChoiceClick(choiceDetails.action, rec.replace(/ \p{Emoji}/gu, ''))} className="bg-background/80 text-left h-auto whitespace-normal">
                 <Icon className="mr-2 h-4 w-4" />
                 {rec.replace(/ \p{Emoji}/gu, '')}
               </Button>
