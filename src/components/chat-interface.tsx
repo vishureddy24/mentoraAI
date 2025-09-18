@@ -23,7 +23,7 @@ import { Puzzles } from './coping/puzzles';
 const choiceMap: Record<string, { icon: React.ElementType; label: string; action: string }> = {
   "do a short, guided breathing exercise to find some calm?": { icon: Wind, label: 'Breathing Exercise', action: 'start_breathing' },
   "try a simple creative puzzle to distract your mind?": { icon: Puzzle, label: 'Creative Puzzles', action: 'start_puzzle' },
-  "release it in the 'smash the stress!' ar game?": { icon: Gamepad2, label: 'Smash the Stress!', action: 'start_smash_stress' },
+  "release it in the 'smash the stress!' ar game?": { icon: Gamepad2, label: 'Smash the Stress!', action: 'start_crystal_shatter' },
   "write it all out in a private 'anger journal'?": { icon: BrainCircuit, label: 'Anger Dump Journal', action: 'start_journaling' },
   "or would you prefer to just talk about what's on your mind?": { icon: MessageCircle, label: 'Just Talk', action: 'start_talk' },
   "or just tell me what happened?": { icon: MessageCircle, label: 'Just Talk', action: 'start_talk' },
