@@ -44,10 +44,10 @@ const handleUserChoiceFlow = ai.defineFlow(
           activity: 'puzzles',
         };
         break;
-      case 'start_crystal_shatter':
+      case 'start_fruit_slicer':
         result = {
-          response: "Let's try Crystal Shatter. I'll place some fragile crystals in your room. Tap them to release the stress they hold.",
-          activity: 'crystal-shatter',
+          response: "Let's slice that stress away! This game uses your camera to create an interactive space. Swipe across the fruits to slice them.",
+          activity: 'fruit-slicer',
         };
         break;
       case 'start_journaling':

@@ -16,14 +16,14 @@ import { safetyNetProtocol } from '@/ai/flows/safety-net-protocol';
 import { handleUserChoice } from '@/ai/flows/handle-user-choice';
 
 import { BreathingExercise } from './coping/breathing-exercise';
-import { CrystalShatterGame } from './coping/crystal-shatter';
+import { FruitSlicerGame } from './coping/fruit-slicer';
 import { Journal } from './coping/journal';
 import { Puzzles } from './coping/puzzles';
 
 const choiceMap: Record<string, { icon: React.ElementType; label: string; action: string }> = {
   "do a short, guided breathing exercise to find some calm?": { icon: Wind, label: 'Breathing Exercise', action: 'start_breathing' },
   "try a simple creative puzzle to distract your mind?": { icon: Puzzle, label: 'Creative Puzzles', action: 'start_puzzle' },
-  "release it in the 'smash the stress!' ar game?": { icon: Gamepad2, label: 'Smash the Stress!', action: 'start_crystal_shatter' },
+  "slice away the stress in the 'fruit slicer' game?": { icon: Gamepad2, label: 'Fruit Slicer', action: 'start_fruit_slicer' },
   "write it all out in a private 'anger journal'?": { icon: BrainCircuit, label: 'Anger Dump Journal', action: 'start_journaling' },
   "or would you prefer to just talk about what's on your mind?": { icon: MessageCircle, label: 'Just Talk', action: 'start_talk' },
   "or just tell me what happened?": { icon: MessageCircle, label: 'Just Talk', action: 'start_talk' },
@@ -34,7 +34,7 @@ const choiceMap: Record<string, { icon: React.ElementType; label: string; action
 const activityMap: Record<string, React.ElementType> = {
   breathing: BreathingExercise,
   puzzles: Puzzles,
-  'crystal-shatter': CrystalShatterGame,
+  'fruit-slicer': FruitSlicerGame,
   journal: Journal,
 };
 
