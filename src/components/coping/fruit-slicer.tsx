@@ -91,8 +91,8 @@ export function FruitSlicerGame() {
       fruitType: isBomb ? undefined : fruitType,
       x: Math.random() * canvasWidth * 0.8 + canvasWidth * 0.1, // Spawn away from edges
       y: canvasHeight + 50,
-      vx: (Math.random() - 0.5) * 6,
-      vy: -(Math.random() * 8 + 12), // Upward velocity
+      vx: (Math.random() - 0.5) * 4, // Horizontal velocity
+      vy: -(Math.random() * 5 + 10), // Reduced upward velocity
       radius: isBomb ? 20 : Math.random() * 10 + 20,
       isSliced: false,
     };
@@ -147,7 +147,7 @@ export function FruitSlicerGame() {
         const newObj = { ...obj };
         newObj.x += newObj.vx;
         newObj.y += newObj.vy;
-        newObj.vy += 0.2; // Gravity
+        newObj.vy += 0.15; // Reduced gravity
         return newObj;
     }).filter(obj => obj.y < canvas.height + 100);
 
@@ -163,7 +163,9 @@ export function FruitSlicerGame() {
       const { width, height } = canvas.getBoundingClientRect();
       
       const objectInterval = setInterval(() => {
-        gameObjectsRef.current = [...gameObjectsRef.current, createGameObject(width, height)];
+        if (gameObjectsRef.current.length < 15) { // Limit number of objects on screen
+          gameObjectsRef.current = [...gameObjectsRef.current, createGameObject(width, height)];
+        }
       }, 800); // Spawn a new object every 800ms
 
       const timerInterval = setInterval(() => {
@@ -207,7 +209,7 @@ export function FruitSlicerGame() {
                     setGameState('gameOver');
                 } else {
                     setScore(s => s + 10);
-                    return { ...obj, isSliced: true, vy: obj.vy + 2 }; // Make sliced pieces fall faster
+                    return { ...obj, isSliced: true, vy: obj.vy > 0 ? obj.vy : 1 }; // Make sliced pieces fall
                 }
             }
         }
