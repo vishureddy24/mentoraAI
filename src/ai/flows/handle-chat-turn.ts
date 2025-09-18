@@ -149,57 +149,59 @@ const handleChatTurnFlow = ai.defineFlow(
       return englishOutput;
     }
 
-    // 3. Translate the response back to the user's language
-    let translatedResponse = { ...englishOutput };
+    console.log("--> 1. ENGLISH OBJECT CREATED:", JSON.stringify(englishOutput, null, 2));
 
-    // Create a list of promises for all translation tasks
-    const translationPromises = [];
+    try {
+      let translatedResponse = { ...englishOutput };
+      const translationPromises = [];
 
-    // Translate empatheticResponse if it exists
-    if (englishOutput.empatheticResponse) {
-      translationPromises.push(
-        retryWithExponentialBackoff(async () => 
-          translationPrompt({ targetLanguage: languageCode, text: englishOutput.empatheticResponse })
-        ).then(res => ({ type: 'empatheticResponse', text: res.output! }))
-      );
-    }
-
-    // Translate introductoryText if it exists
-    if (englishOutput.introductoryText) {
-      translationPromises.push(
-        retryWithExponentialBackoff(async () => 
-          translationPrompt({ targetLanguage: languageCode, text: englishOutput.introductoryText })
-        ).then(res => ({ type: 'introductoryText', text: res.output! }))
-      );
-    }
-    
-    // Translate all recommendations
-    englishOutput.recommendations.forEach((rec, index) => {
-      translationPromises.push(
-        retryWithExponentialBackoff(async () => 
-          translationPrompt({ targetLanguage: languageCode, text: rec })
-        ).then(res => ({ type: 'recommendation', index, text: res.output! }))
-      );
-    });
-
-    // Execute all translations in parallel
-    const translations = await Promise.all(translationPromises);
-    
-    const translatedRecommendations = new Array(englishOutput.recommendations.length);
-
-    // Apply the translated texts to the response object
-    for (const translation of translations) {
-      if (translation.type === 'empatheticResponse') {
-        translatedResponse.empatheticResponse = translation.text;
-      } else if (translation.type === 'introductoryText') {
-        translatedResponse.introductoryText = translation.text;
-      } else if (translation.type === 'recommendation') {
-        translatedRecommendations[translation.index] = translation.text;
+      if (englishOutput.empatheticResponse) {
+        translationPromises.push(
+          retryWithExponentialBackoff(async () => 
+            translationPrompt({ targetLanguage: languageCode, text: englishOutput.empatheticResponse })
+          ).then(res => ({ type: 'empatheticResponse', text: res.output! }))
+        );
       }
-    }
-    
-    translatedResponse.recommendations = translatedRecommendations;
 
-    return translatedResponse;
+      if (englishOutput.introductoryText) {
+        translationPromises.push(
+          retryWithExponentialBackoff(async () => 
+            translationPrompt({ targetLanguage: languageCode, text: englishOutput.introductoryText })
+          ).then(res => ({ type: 'introductoryText', text: res.output! }))
+        );
+      }
+      
+      englishOutput.recommendations.forEach((rec, index) => {
+        translationPromises.push(
+          retryWithExponentialBackoff(async () => 
+            translationPrompt({ targetLanguage: languageCode, text: rec })
+          ).then(res => ({ type: 'recommendation', index, text: res.output! }))
+        );
+      });
+
+      const translations = await Promise.all(translationPromises);
+      
+      const translatedRecommendations = new Array(englishOutput.recommendations.length);
+
+      for (const translation of translations) {
+        if (translation.type === 'empatheticResponse') {
+          translatedResponse.empatheticResponse = translation.text;
+        } else if (translation.type === 'introductoryText') {
+          translatedResponse.introductoryText = translation.text;
+        } else if (translation.type === 'recommendation') {
+          translatedRecommendations[translation.index] = translation.text;
+        }
+      }
+      
+      translatedResponse.recommendations = translatedRecommendations;
+
+      console.log("--> 2. TRANSLATION SUCCEEDED. FINAL OBJECT:", JSON.stringify(translatedResponse, null, 2));
+      return translatedResponse;
+
+    } catch (error) {
+      console.error("--> X. ERROR DURING TRANSLATION:", error);
+      // As a fallback, send the English version so the user doesn't get an empty response
+      return englishOutput;
+    }
   }
 );
