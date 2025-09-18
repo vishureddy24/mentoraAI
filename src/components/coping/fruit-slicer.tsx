@@ -34,7 +34,7 @@ export function FruitSlicerGame() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [gameState, setGameState] = useState<GameState>('idle');
-  const [gameObjects, setGameObjects] = useState<GameObject[]>([]);
+  const gameObjectsRef = useRef<GameObject[]>([]);
   const [score, setScore] = useState(0);
   const [gameTimer, setGameTimer] = useState(45);
   const animationFrameId = useRef<number>();
@@ -77,7 +77,7 @@ export function FruitSlicerGame() {
   const startGame = () => {
     setGameState('playing');
     setScore(0);
-    setGameObjects([]);
+    gameObjectsRef.current = [];
     setGameTimer(45);
   };
   
@@ -101,11 +101,19 @@ export function FruitSlicerGame() {
   const drawGameObject = (ctx: CanvasRenderingContext2D, obj: GameObject) => {
     ctx.beginPath();
     if (obj.type === 'bomb') {
+        const bombIcon = new Bomb();
+        // This is a simplified way to draw an icon-like shape.
         ctx.fillStyle = '#333';
         ctx.arc(obj.x, obj.y, obj.radius, 0, Math.PI * 2);
         ctx.fill();
-        ctx.fillStyle = '#ffdd00';
-        ctx.fillRect(obj.x-3, obj.y-obj.radius-5, 6, 10);
+        ctx.strokeStyle = '#fff';
+        ctx.lineWidth = 2;
+        ctx.moveTo(obj.x - 5, obj.y - 5);
+        ctx.lineTo(obj.x + 5, obj.y + 5);
+        ctx.moveTo(obj.x + 5, obj.y - 5);
+        ctx.lineTo(obj.x - 5, obj.y + 5);
+        ctx.stroke();
+
     } else {
         if(obj.isSliced){
             const { color } = FRUIT_TYPES[obj.fruitType!];
@@ -127,6 +135,7 @@ export function FruitSlicerGame() {
   };
 
   const gameLoop = useCallback(() => {
+    if (gameState !== 'playing') return;
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
@@ -134,21 +143,18 @@ export function FruitSlicerGame() {
   
     ctx.clearRect(0, 0, canvas.width, canvas.height);
   
-    setGameObjects(prevObjects => {
-        const updatedObjects = prevObjects.map(obj => {
-            const newObj = { ...obj };
-            newObj.x += newObj.vx;
-            newObj.y += newObj.vy;
-            newObj.vy += 0.2; // Gravity
-            return newObj;
-        }).filter(obj => obj.y < canvas.height + 100);
+    gameObjectsRef.current = gameObjectsRef.current.map(obj => {
+        const newObj = { ...obj };
+        newObj.x += newObj.vx;
+        newObj.y += newObj.vy;
+        newObj.vy += 0.2; // Gravity
+        return newObj;
+    }).filter(obj => obj.y < canvas.height + 100);
 
-        updatedObjects.forEach(obj => drawGameObject(ctx, obj));
-        return updatedObjects;
-    });
+    gameObjectsRef.current.forEach(obj => drawGameObject(ctx, obj));
   
     animationFrameId.current = requestAnimationFrame(gameLoop);
-  }, [drawGameObject]);
+  }, [gameState, drawGameObject]);
   
   useEffect(() => {
     if (gameState === 'playing') {
@@ -157,7 +163,7 @@ export function FruitSlicerGame() {
       const { width, height } = canvas.getBoundingClientRect();
       
       const objectInterval = setInterval(() => {
-        setGameObjects(prev => [...prev, createGameObject(width, height)]);
+        gameObjectsRef.current = [...gameObjectsRef.current, createGameObject(width, height)];
       }, 800); // Spawn a new object every 800ms
 
       const timerInterval = setInterval(() => {
@@ -192,7 +198,7 @@ export function FruitSlicerGame() {
     const clickY = e.clientY - rect.top;
 
     let hit = false;
-    setGameObjects(prev => prev.map(obj => {
+    gameObjectsRef.current = gameObjectsRef.current.map(obj => {
         if (!obj.isSliced && !hit) {
             const dist = Math.hypot(clickX - obj.x, clickY - obj.y);
             if (dist < obj.radius) {
@@ -206,7 +212,7 @@ export function FruitSlicerGame() {
             }
         }
         return obj;
-    }).filter(obj => !obj.isSliced || obj.y < canvas.height + 50)); // remove sliced items once offscreen
+    }).filter(obj => !obj.isSliced || obj.y < canvas.height + 50); // remove sliced items once offscreen
   };
 
   const resetGame = () => {
@@ -222,12 +228,9 @@ export function FruitSlicerGame() {
         canvasRef.current.height = gameContainerRef.current.clientHeight;
       }
     };
-    // Only run resize on the client
-    if (typeof window !== 'undefined') {
-        window.addEventListener('resize', resizeCanvas);
-        resizeCanvas(); // Initial size
-        return () => window.removeEventListener('resize', resizeCanvas);
-    }
+    resizeCanvas();
+    window.addEventListener('resize', resizeCanvas);
+    return () => window.removeEventListener('resize', resizeCanvas);
   }, [gameState]);
   
   const renderContent = () => {
@@ -268,37 +271,35 @@ export function FruitSlicerGame() {
           </div>
         );
       case 'playing':
+      case 'gameOver':
         return (
-          <div className="relative w-full aspect-video max-h-[80vh] bg-gray-800 rounded-lg overflow-hidden cursor-pointer">
+            <div className="relative w-full aspect-video max-h-[80vh] bg-gray-800 rounded-lg overflow-hidden cursor-pointer" style={{ width: '100%', height: '100%'}}>
             <video ref={videoRef} className="absolute inset-0 w-full h-full object-cover opacity-30" autoPlay muted playsInline />
             <canvas 
               ref={canvasRef}
               className="absolute inset-0 w-full h-full"
               onClick={handleCanvasClick}
             />
-            <div className="absolute top-2 left-2 right-2 text-white bg-black/50 p-2 rounded-lg">
+             {gameState === 'playing' && <div className="absolute top-2 left-2 right-2 text-white bg-black/50 p-2 rounded-lg">
                 <div className='flex justify-between items-center text-lg font-bold'>
                     <p>Time: {gameTimer}</p>
                     <p>Score: {score}</p>
                 </div>
-            </div>
-          </div>
-        );
-      case 'gameOver':
-        return (
-          <div className="flex flex-col items-center justify-center gap-4 text-center p-10 min-h-[300px] animate-in fade-in">
-            {score > 0 ? (
-                <Sparkles className="h-10 w-10 text-primary" />
-            ) : (
-                <Bomb className="h-10 w-10 text-destructive" />
-            )}
-            <h3 className="text-2xl font-semibold">Game Over!</h3>
-            <p className="text-xl">Your Score: {score}</p>
-            <p className="text-muted-foreground mt-2">Great job focusing your energy! Hope that helped.</p>
-            <div className='flex gap-4 mt-4'>
-                <Button onClick={startGame}>Play Again</Button>
-                <Button onClick={resetGame} variant="secondary">Return to Menu</Button>
-            </div>
+            </div>}
+            {gameState === 'gameOver' && <div className="absolute inset-0 bg-black/50 flex flex-col items-center justify-center gap-4 text-center p-10 animate-in fade-in">
+                {score > 0 ? (
+                    <Sparkles className="h-10 w-10 text-primary" />
+                ) : (
+                    <Bomb className="h-10 w-10 text-destructive" />
+                )}
+                <h3 className="text-2xl font-semibold text-white">Game Over!</h3>
+                <p className="text-xl text-white">Your Score: {score}</p>
+                <p className="text-muted-foreground mt-2">Great job focusing your energy! Hope that helped.</p>
+                <div className='flex gap-4 mt-4'>
+                    <Button onClick={startGame}>Play Again</Button>
+                    <Button onClick={resetGame} variant="secondary">Return to Menu</Button>
+                </div>
+              </div>}
           </div>
         );
       default:
@@ -307,12 +308,10 @@ export function FruitSlicerGame() {
   };
 
   return (
-    <Card className="w-full max-w-2xl bg-background/50 border-accent/20">
-      <CardContent className="p-2 flex justify-center items-center" ref={gameContainerRef}>
+    <Card className="w-full max-w-2xl bg-background/50 border-accent/20 h-[450px] md:h-[600px]">
+      <CardContent className="p-2 flex justify-center items-center h-full" ref={gameContainerRef}>
         {renderContent()}
       </CardContent>
     </Card>
   );
 }
-
-    
