@@ -127,7 +127,6 @@ export function FruitSlicerGame() {
   };
 
   const gameLoop = useCallback(() => {
-    console.log("Game Loop Tick!"); // <-- DEBUG STEP 1
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
@@ -158,15 +157,7 @@ export function FruitSlicerGame() {
       const { width, height } = canvas.getBoundingClientRect();
       
       const objectInterval = setInterval(() => {
-        console.log("Spawning a new object!"); // <-- DEBUG STEP 2
-        
-        setGameObjects(prev => {
-          const newObject = createGameObject(width, height);
-          const updatedObjects = [...prev, newObject];
-          console.log("Game Objects in State:", updatedObjects); // <-- DEBUG STEP 3
-          return updatedObjects;
-        });
-
+        setGameObjects(prev => [...prev, createGameObject(width, height)]);
       }, 800); // Spawn a new object every 800ms
 
       const timerInterval = setInterval(() => {
@@ -231,9 +222,12 @@ export function FruitSlicerGame() {
         canvasRef.current.height = gameContainerRef.current.clientHeight;
       }
     };
-    window.addEventListener('resize', resizeCanvas);
-    resizeCanvas();
-    return () => window.removeEventListener('resize', resizeCanvas);
+    // Only run resize on the client
+    if (typeof window !== 'undefined') {
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas(); // Initial size
+        return () => window.removeEventListener('resize', resizeCanvas);
+    }
   }, [gameState]);
   
   const renderContent = () => {
@@ -320,3 +314,5 @@ export function FruitSlicerGame() {
     </Card>
   );
 }
+
+    
