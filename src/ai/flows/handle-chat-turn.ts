@@ -152,49 +152,39 @@ const handleChatTurnFlow = ai.defineFlow(
     console.log("--> 1. ENGLISH OBJECT CREATED:", JSON.stringify(englishOutput, null, 2));
 
     try {
-      let translatedResponse = { ...englishOutput };
-      const translationPromises = [];
+      const translatedResponse: HandleChatTurnOutput = {
+        isCritical: englishOutput.isCritical,
+        empatheticResponse: '',
+        introductoryText: '',
+        recommendations: [],
+      };
 
+      // 3. Translate the response back to the user's language, one by one.
       if (englishOutput.empatheticResponse) {
-        translationPromises.push(
-          retryWithExponentialBackoff(async () => 
-            translationPrompt({ targetLanguage: languageCode, text: englishOutput.empatheticResponse })
-          ).then(res => ({ type: 'empatheticResponse', text: res.output! }))
+        const translatedEmpatheticResponse = await retryWithExponentialBackoff(async () =>
+          translationPrompt({ targetLanguage: languageCode, text: englishOutput.empatheticResponse })
         );
+        translatedResponse.empatheticResponse = translatedEmpatheticResponse.output!;
       }
 
       if (englishOutput.introductoryText) {
-        translationPromises.push(
-          retryWithExponentialBackoff(async () => 
-            translationPrompt({ targetLanguage: languageCode, text: englishOutput.introductoryText })
-          ).then(res => ({ type: 'introductoryText', text: res.output! }))
+        const translatedIntroductoryText = await retryWithExponentialBackoff(async () =>
+          translationPrompt({ targetLanguage: languageCode, text: englishOutput.introductoryText })
         );
+        translatedResponse.introductoryText = translatedIntroductoryText.output!;
       }
-      
-      englishOutput.recommendations.forEach((rec, index) => {
-        translationPromises.push(
-          retryWithExponentialBackoff(async () => 
-            translationPrompt({ targetLanguage: languageCode, text: rec })
-          ).then(res => ({ type: 'recommendation', index, text: res.output! }))
-        );
-      });
 
-      const translations = await Promise.all(translationPromises);
-      
-      const translatedRecommendations = new Array(englishOutput.recommendations.length);
-
-      for (const translation of translations) {
-        if (translation.type === 'empatheticResponse') {
-          translatedResponse.empatheticResponse = translation.text;
-        } else if (translation.type === 'introductoryText') {
-          translatedResponse.introductoryText = translation.text;
-        } else if (translation.type === 'recommendation') {
-          translatedRecommendations[translation.index] = translation.text;
+      if (englishOutput.recommendations && englishOutput.recommendations.length > 0) {
+        const translatedRecommendations: string[] = [];
+        for (const recommendation of englishOutput.recommendations) {
+          const translatedRecommendation = await retryWithExponentialBackoff(async () =>
+            translationPrompt({ targetLanguage: languageCode, text: recommendation })
+          );
+          translatedRecommendations.push(translatedRecommendation.output!);
         }
+        translatedResponse.recommendations = translatedRecommendations;
       }
       
-      translatedResponse.recommendations = translatedRecommendations;
-
       console.log("--> 2. TRANSLATION SUCCEEDED. FINAL OBJECT:", JSON.stringify(translatedResponse, null, 2));
       return translatedResponse;
 
