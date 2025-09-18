@@ -16,7 +16,6 @@ import { safetyNetProtocol } from '@/ai/flows/safety-net-protocol';
 import { handleUserChoice } from '@/ai/flows/handle-user-choice';
 
 import { BreathingExercise } from './coping/breathing-exercise';
-import { FruitSlicerGame } from './coping/fruit-slicer';
 import { Journal } from './coping/journal';
 import { Puzzles } from './coping/puzzles';
 
@@ -34,7 +33,6 @@ const choiceMap: Record<string, { icon: React.ElementType; label: string; action
 const activityMap: Record<string, React.ElementType> = {
   breathing: BreathingExercise,
   puzzles: Puzzles,
-  'fruit-slicer': FruitSlicerGame,
   journal: Journal,
 };
 
@@ -81,18 +79,25 @@ export function ChatInterface() {
       
       if (result.activity) {
         console.log("--> SETTING ACTIVITY TO:", result.activity);
-        const ActivityComponent = activityMap[result.activity];
-        if (ActivityComponent) {
-          newModelMessages.push({
-            id: Date.now().toString() + '-activity',
-            role: 'model',
-            type: 'activity',
-            content: <ActivityComponent />,
-          });
+        if (result.activity === 'fruit-slicer') {
+          window.open('/fruit-slicer', '_blank');
+          setMessages(prev => [...prev, ...newModelMessages]);
+        } else {
+          const ActivityComponent = activityMap[result.activity];
+          if (ActivityComponent) {
+            newModelMessages.push({
+              id: Date.now().toString() + '-activity',
+              role: 'model',
+              type: 'activity',
+              content: <ActivityComponent />,
+            });
+          }
+          setMessages(prev => [...prev, ...newModelMessages]);
         }
+      } else {
+        setMessages(prev => [...prev, ...newModelMessages]);
       }
 
-      setMessages(prev => [...prev, ...newModelMessages]);
 
     } catch (error) {
        console.error('AI Error:', error);
