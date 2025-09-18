@@ -127,6 +127,7 @@ export function FruitSlicerGame() {
   };
 
   const gameLoop = useCallback(() => {
+    console.log("Game Loop Tick!"); // <-- DEBUG STEP 1
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
@@ -157,10 +158,15 @@ export function FruitSlicerGame() {
       const { width, height } = canvas.getBoundingClientRect();
       
       const objectInterval = setInterval(() => {
-        setGameObjects(prev => [
-          ...prev,
-          createGameObject(width, height)
-        ]);
+        console.log("Spawning a new object!"); // <-- DEBUG STEP 2
+        
+        setGameObjects(prev => {
+          const newObject = createGameObject(width, height);
+          const updatedObjects = [...prev, newObject];
+          console.log("Game Objects in State:", updatedObjects); // <-- DEBUG STEP 3
+          return updatedObjects;
+        });
+
       }, 800); // Spawn a new object every 800ms
 
       const timerInterval = setInterval(() => {
