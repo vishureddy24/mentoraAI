@@ -172,9 +172,9 @@ export function FruitSlicerGame() {
     return {
       id: Date.now() + Math.random(),
       x: Math.random() * canvasWidth,
-      y: -50,
-      vx: (Math.random() - 0.5) * 4,
-      vy: Math.random() * 5 + 5,
+      y: canvasRef.current!.height + 50,
+      vx: (Math.random() - 0.5) * 8,
+      vy: - (Math.random() * 5 + 10), // Shoot upwards
       radius: Math.random() * 10 + 20,
       type: type,
       isSliced: false,
@@ -185,18 +185,27 @@ export function FruitSlicerGame() {
 
   const drawFruit = (ctx: CanvasRenderingContext2D, fruit: Fruit) => {
     const { color, borderColor } = FRUIT_TYPES[fruit.type];
-    ctx.fillStyle = color;
-    ctx.strokeStyle = borderColor;
-    ctx.lineWidth = 3;
-
+    
     if (fruit.isSliced) {
-      fruit.pieces.forEach(piece => {
-        ctx.beginPath();
-        ctx.arc(piece.x, piece.y, fruit.radius, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.stroke();
-      });
+        ctx.save();
+        ctx.translate(fruit.x, fruit.y);
+        ctx.rotate(fruit.sliceAngle);
+        // Draw two half-circles
+        fruit.pieces.forEach(p => {
+          ctx.fillStyle = color;
+          ctx.strokeStyle = borderColor;
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, fruit.radius, 0, Math.PI);
+          ctx.closePath();
+          ctx.fill();
+          ctx.stroke();
+        });
+        ctx.restore();
     } else {
+      ctx.fillStyle = color;
+      ctx.strokeStyle = borderColor;
+      ctx.lineWidth = 3;
       ctx.beginPath();
       ctx.arc(fruit.x, fruit.y, fruit.radius, 0, Math.PI * 2);
       ctx.fill();
@@ -240,7 +249,7 @@ export function FruitSlicerGame() {
             const dist = Math.hypot(currentPoint.x - fruit.x, currentPoint.y - fruit.y);
 
             if (dist < fruit.radius) {
-              setScore(s => s + 1);
+              setScore(s => s + 10);
               setStressLevel(sl => Math.max(0, sl - 5));
               const angle = Math.atan2(currentPoint.y - lastSlicePoint.current!.y, currentPoint.x - lastSlicePoint.current!.x);
               return { 
@@ -248,8 +257,8 @@ export function FruitSlicerGame() {
                 isSliced: true,
                 sliceAngle: angle,
                 pieces: [
-                  { x: fruit.x - fruit.radius / 4, y: fruit.y - fruit.radius / 4, vx: fruit.vx - 2, vy: fruit.vy - 2 },
-                  { x: fruit.x + fruit.radius / 4, y: fruit.y + fruit.radius / 4, vx: fruit.vx + 2, vy: fruit.vy - 2 },
+                  { x: -fruit.radius / 2, y: 0, vx: -2, vy: -2 },
+                  { x: fruit.radius / 2, y: 0, vx: 2, vy: -2 },
                 ]
               };
             }
@@ -309,6 +318,10 @@ export function FruitSlicerGame() {
           <div className="flex flex-col items-center justify-center gap-4 text-center p-6 min-h-[250px]">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
             <p>Requesting camera access...</p>
+            {hasCameraPermission === false && <Alert variant="destructive" className="mt-4">
+              <AlertTitle>Camera Access Denied</AlertTitle>
+              <AlertDescription>Please enable camera permissions in your browser settings to play.</AlertDescription>
+            </Alert>}
           </div>
         );
       case 'ready':
@@ -325,8 +338,8 @@ export function FruitSlicerGame() {
         );
       case 'gameStarted':
         return (
-          <div ref={gameContainerRef} className="relative w-full aspect-video max-h-[80vh] bg-black rounded-lg overflow-hidden cursor-crosshair">
-            <video ref={videoRef} className="absolute inset-0 w-full h-full object-cover" autoPlay muted playsInline />
+          <div ref={gameContainerRef} className="relative w-full aspect-video max-h-[80vh] bg-gray-800 rounded-lg overflow-hidden cursor-crosshair">
+            <video ref={videoRef} className="absolute inset-0 w-full h-full object-cover opacity-30" autoPlay muted playsInline />
             <canvas 
               ref={canvasRef}
               width={gameContainerRef.current?.clientWidth || 640}
@@ -340,12 +353,15 @@ export function FruitSlicerGame() {
               onTouchEnd={endSlicing}
               onTouchMove={handleSlice}
             />
-            <div className="absolute top-2 left-2 right-2 text-white bg-black/30 p-2 rounded-lg">
-                <div className='flex justify-between items-center'>
+            <div className="absolute top-2 left-2 right-2 text-white bg-black/50 p-2 rounded-lg">
+                <div className='flex justify-between items-center text-lg font-bold'>
                     <p>Time: {gameTimer}</p>
                     <p>Score: {score}</p>
                 </div>
-                <Progress value={stressLevel} className="h-2 mt-1" />
+                <div className="mt-2">
+                  <p className="text-xs text-center mb-1">Stress Level</p>
+                  <Progress value={stressLevel} className="h-2" />
+                </div>
             </div>
           </div>
         );
@@ -360,8 +376,8 @@ export function FruitSlicerGame() {
         return (
           <div className="flex flex-col items-center justify-center gap-4 text-center p-10 min-h-[250px] animate-in fade-in">
             <Sparkles className="h-10 w-10 text-primary" />
-            <h3 className="text-xl font-semibold">You sliced {score} fruits!</h3>
-            <p className="text-muted-foreground">You reduced your stress level by {100 - stressLevel}%.</p>
+            <h3 className="text-xl font-semibold">You destroyed your stress with a score of {score}!</h3>
+            <p className="text-muted-foreground">You reduced your stress level by {100 - stressLevel}%. Awesome work.</p>
             <p className="mt-4">Take a deep breath and feel the space you've created.</p>
             <Button onClick={handleReturnToChat} className="mt-4">Return to Chat</Button>
           </div>

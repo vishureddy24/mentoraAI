@@ -46,7 +46,7 @@ const handleUserChoiceFlow = ai.defineFlow(
         break;
       case 'start_fruit_slicer':
         result = {
-          response: "Let's slice that stress away! This game uses your camera to create an interactive space. Swipe across the fruits to slice them.",
+          response: "Let's slice that stress away! This is an interactive game where you can release your frustration. Ready to smash some stress?",
           activity: 'fruit-slicer',
         };
         break;

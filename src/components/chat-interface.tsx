@@ -21,12 +21,12 @@ import { Journal } from './coping/journal';
 import { Puzzles } from './coping/puzzles';
 
 const choiceMap: Record<string, { icon: React.ElementType; label: string; action: string }> = {
-  "do a short, guided breathing exercise to find some calm?": { icon: Wind, label: 'Breathing Exercise', action: 'start_breathing' },
-  "try a simple creative puzzle to distract your mind?": { icon: Puzzle, label: 'Creative Puzzles', action: 'start_puzzle' },
-  "slice away the stress in the 'fruit slicer' game?": { icon: Gamepad2, label: 'Fruit Slicer', action: 'start_fruit_slicer' },
-  "write it all out in a private 'anger journal'?": { icon: BrainCircuit, label: 'Anger Dump Journal', action: 'start_journaling' },
-  "or would you prefer to just talk about what's on your mind?": { icon: MessageCircle, label: 'Just Talk', action: 'start_talk' },
-  "or just tell me what happened?": { icon: MessageCircle, label: 'Just Talk', action: 'start_talk' },
+  "do a short, guided breathing exercise to find some calm? 🧘": { icon: Wind, label: 'Breathing Exercise', action: 'start_breathing' },
+  "try a simple creative puzzle to distract your mind? 🧠": { icon: Puzzle, label: 'Creative Puzzles', action: 'start_puzzle' },
+  "slice away the stress in the 'fruit slicer' game? 🍉": { icon: Gamepad2, label: 'Fruit Slicer', action: 'start_fruit_slicer' },
+  "write it all out in a private 'anger journal'? 📝": { icon: BrainCircuit, label: 'Anger Dump Journal', action: 'start_journaling' },
+  "or would you prefer to just talk about what's on your mind? 💬": { icon: MessageCircle, label: 'Just Talk', action: 'start_talk' },
+  "or just tell me what happened? 💬": { icon: MessageCircle, label: 'Just Talk', action: 'start_talk' },
   "just talk": { icon: MessageCircle, label: 'Just Talk', action: 'start_talk' },
 };
 
@@ -151,15 +151,15 @@ export function ChatInterface() {
         const choices = (
           <div className="flex flex-wrap gap-2">
             {result.recommendations.map((rec, index) => {
-              const key = Object.keys(choiceMap).find(k => rec.toLowerCase().includes(k.replace(/[^\w\s-?'!]/gi, '')))
-              if (!key) {
+              const choiceDetails = Object.keys(choiceMap).find(key => rec.toLowerCase().includes(key.substring(0, key.indexOf('?'))));
+              if (!choiceDetails) {
                 console.warn(`No choice mapping found for recommendation: "${rec}"`);
                 return null;
               }
-              const choiceDetails = choiceMap[key];
-              const Icon = choiceDetails.icon;
+              const choice = choiceMap[choiceDetails];
+              const Icon = choice.icon;
               return (
-                <Button key={index} variant="outline" onClick={() => handleChoiceClick(choiceDetails.action, choiceDetails.label)} className="bg-background/80 text-left h-auto whitespace-normal">
+                <Button key={index} variant="outline" onClick={() => handleChoiceClick(choice.action, choice.label)} className="bg-background/80 text-left h-auto whitespace-normal">
                   <Icon className="mr-2 h-4 w-4" />
                   {rec.replace(/ \p{Emoji}/gu, '')}
                 </Button>
