@@ -46,7 +46,7 @@ const handleUserChoiceFlow = ai.defineFlow(
         break;
       case 'start_crystal_shatter':
         result = {
-          response: "Let's try Crystal Shatter. It's a therapeutic game where you can safely release your frustration by breaking virtual crystals.",
+          response: "Let's try Crystal Shatter. I'll place some fragile crystals in your room. Tap them to release the stress they hold.",
           activity: 'crystal-shatter',
         };
         break;

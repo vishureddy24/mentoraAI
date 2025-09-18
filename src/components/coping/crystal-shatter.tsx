@@ -7,9 +7,8 @@ import { Camera, Loader2, Sparkles } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Progress } from '@/components/ui/progress';
-import { BreathingExercise } from './breathing-exercise';
 
-type GameState = 'idle' | 'requestingPermission' | 'ready' | 'gameStarted' | 'cooldown' | 'gameEnded';
+type GameState = 'intro' | 'requestingPermission' | 'playing' | 'finished';
 
 interface Crystal {
   id: number;
@@ -17,6 +16,7 @@ interface Crystal {
   y: number;
   radius: number;
   opacity: number;
+  shattered: boolean;
 }
 
 interface Particle {
@@ -36,6 +36,7 @@ const generateCrystals = (width: number, height: number): Crystal[] => {
     y: Math.random() * (height * 0.8) + height * 0.1,
     radius: Math.random() * 15 + 20, // 20 to 35
     opacity: 1,
+    shattered: false,
   }));
 };
 
@@ -44,15 +45,13 @@ export function CrystalShatterGame() {
   const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [gameState, setGameState] = useState<GameState>('idle');
+  const [gameState, setGameState] = useState<GameState>('intro');
   const [crystals, setCrystals] = useState<Crystal[]>([]);
   const [particles, setParticles] = useState<Particle[]>([]);
-  const [stressLevel, setStressLevel] = useState(100);
-  const [timer, setTimer] = useState(90);
-  
   const gameContainerRef = useRef<HTMLDivElement>(null);
 
   const drawCrystal = (ctx: CanvasRenderingContext2D, crystal: Crystal) => {
+    if (crystal.shattered) return;
     ctx.save();
     ctx.globalAlpha = crystal.opacity;
     ctx.shadowBlur = 15;
@@ -83,7 +82,7 @@ export function CrystalShatterGame() {
     ctx.fill();
     ctx.restore();
   };
-
+  
   const draw = useCallback(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -101,14 +100,14 @@ export function CrystalShatterGame() {
       draw();
       animationFrameId = requestAnimationFrame(animate);
     };
-    if (gameState === 'gameStarted') {
+    if (gameState === 'playing') {
       animate();
     }
     return () => cancelAnimationFrame(animationFrameId);
   }, [draw, gameState]);
-  
+
   useEffect(() => {
-    if (gameState !== 'gameStarted') return;
+    if (gameState !== 'playing') return;
   
     const interval = setInterval(() => {
       setParticles(prev => {
@@ -130,19 +129,20 @@ export function CrystalShatterGame() {
 
 
   useEffect(() => {
+    if (gameState !== 'requestingPermission') return;
+    
     const getCameraPermission = async () => {
-      if (gameState !== 'requestingPermission') return;
       try {
         const stream = await navigator.mediaDevices.getUserMedia({ video: true });
         setHasCameraPermission(true);
         if (videoRef.current) {
           videoRef.current.srcObject = stream;
         }
-        setGameState('ready');
+        setGameState('playing');
       } catch (error) {
         console.error('Error accessing camera:', error);
         setHasCameraPermission(false);
-        setGameState('idle');
+        setGameState('intro'); // Go back to intro if denied
         toast({
           variant: 'destructive',
           title: 'Camera Access Denied',
@@ -153,33 +153,25 @@ export function CrystalShatterGame() {
     getCameraPermission();
   }, [gameState, toast]);
 
-  useEffect(() => {
-    if (gameState === 'gameStarted' && (timer <= 0 || stressLevel <= 0)) {
-        setTimeout(() => setGameState('cooldown'), 1000);
-    }
-    
-    if (gameState === 'gameStarted' && timer > 0) {
-      const countdown = setTimeout(() => setTimer(timer - 1), 1000);
-      return () => clearTimeout(countdown);
-    }
-  }, [gameState, timer, stressLevel]);
-
-  const handleStartGame = () => {
-    const canvas = canvasRef.current;
-    if (canvas && gameContainerRef.current) {
-        const { width, height } = gameContainerRef.current.getBoundingClientRect();
-        canvas.width = width;
-        canvas.height = height;
-        setCrystals(generateCrystals(width, height));
-    }
-    setStressLevel(100);
-    setParticles([]);
-    setTimer(90);
-    setGameState('gameStarted');
+  const handleStartGameClick = () => {
+    setGameState('requestingPermission');
   };
 
+  useEffect(() => {
+    if(gameState === 'playing' && gameContainerRef.current) {
+        const { width, height } = gameContainerRef.current.getBoundingClientRect();
+        if(canvasRef.current) {
+          canvasRef.current.width = width;
+          canvasRef.current.height = height;
+        }
+        setCrystals(generateCrystals(width, height));
+        setParticles([]);
+    }
+  }, [gameState]);
+
+
   const handleShatter = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    if (gameState !== 'gameStarted') return;
+    if (gameState !== 'playing') return;
     const canvas = canvasRef.current;
     if (!canvas) return;
     
@@ -187,13 +179,13 @@ export function CrystalShatterGame() {
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
 
-    let crystalShattered = false;
-    const remainingCrystals: Crystal[] = [];
+    let shatteredSomething = false;
+    const newCrystals = crystals.map(crystal => {
+      if (crystal.shattered) return crystal;
 
-    crystals.forEach(crystal => {
       const distance = Math.sqrt((x - crystal.x) ** 2 + (y - crystal.y) ** 2);
       if (distance < crystal.radius) {
-        crystalShattered = true;
+        shatteredSomething = true;
         // Create particles
         const newParticles = Array.from({ length: 30 }, () => ({
           x: crystal.x,
@@ -204,25 +196,23 @@ export function CrystalShatterGame() {
           size: Math.random() * 2 + 1,
         }));
         setParticles(prev => [...prev, ...newParticles]);
-        setStressLevel(prev => Math.max(0, prev - (100 / 7)));
-      } else {
-        remainingCrystals.push(crystal);
+        return { ...crystal, shattered: true };
       }
+      return crystal;
     });
 
-    if (crystalShattered) {
-      setCrystals(remainingCrystals);
-      if (remainingCrystals.length === 0) {
-        setTimeout(() => setGameState('cooldown'), 1000);
+    if (shatteredSomething) {
+      setCrystals(newCrystals);
+      const remaining = newCrystals.filter(c => !c.shattered).length;
+      if (remaining === 0) {
+        setTimeout(() => setGameState('finished'), 2000); // Wait for particles to fade
       }
     }
   };
 
   const handleReturnToChat = () => {
-    setGameState('idle');
+    setGameState('intro');
     setHasCameraPermission(null);
-    setStressLevel(100);
-    setTimer(90);
     if(videoRef.current && videoRef.current.srcObject) {
         const stream = videoRef.current.srcObject as MediaStream;
         stream.getTracks().forEach(track => track.stop());
@@ -237,73 +227,51 @@ export function CrystalShatterGame() {
           <div className="flex flex-col items-center justify-center gap-4 text-center p-6 h-64">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
             <p>Requesting camera access...</p>
+            <p className="text-sm text-muted-foreground">Please allow camera access in your browser.</p>
           </div>
         );
       
-      case 'gameStarted':
+      case 'playing':
+        if (hasCameraPermission === false) {
+           return (
+            <div className="flex flex-col items-center justify-center gap-4 text-center p-6 min-h-[250px]">
+                <Alert variant="destructive" className="w-auto text-left mt-4">
+                    <AlertTitle>Camera Access Required</AlertTitle>
+                    <AlertDescription>
+                      Camera access was denied. Please enable it in your browser settings and try again.
+                    </AlertDescription>
+                </Alert>
+                <Button onClick={handleReturnToChat}>Return to Chat</Button>
+            </div>
+           )
+        }
         return (
           <div ref={gameContainerRef} className="relative w-full aspect-[9/16] max-h-[80vh] bg-black rounded-lg overflow-hidden">
             <video ref={videoRef} className="absolute inset-0 w-full h-full object-cover" autoPlay muted playsInline />
             <canvas ref={canvasRef} onClick={handleShatter} className="absolute inset-0 w-full h-full" />
-            <div className="absolute top-4 left-4 right-4 text-white p-2 rounded-lg bg-black/50 space-y-2">
-                <div className="flex justify-between items-center text-sm font-medium">
-                    <p>Stress Meter</p>
-                    <p>Time Left: {timer}s</p>
-                </div>
-                <Progress value={100 - stressLevel} className="h-2 [&>div]:bg-green-400" />
-            </div>
           </div>
         );
 
-      case 'cooldown':
-        return (
-            <div className="w-full max-w-md p-4 animate-in fade-in">
-                <BreathingExercise />
-                 <Button onClick={() => setGameState('gameEnded')} className="w-full mt-4">Continue</Button>
-            </div>
-        )
-
-      case 'gameEnded':
+      case 'finished':
         return (
           <div className="flex flex-col items-center justify-center gap-4 text-center p-10 min-h-[250px] animate-in fade-in">
             <Sparkles className="h-10 w-10 text-primary" />
-            <h3 className="text-xl font-semibold">You cleared it all.</h3>
+            <h3 className="text-xl font-semibold">You cleared it all!</h3>
             <p className="text-muted-foreground">Take a deep breath and feel the space you've created.</p>
-            <p className="font-bold text-lg">You reduced your stress by {Math.round(100 - stressLevel)}%!</p>
             <Button onClick={handleReturnToChat}>Return to Chat</Button>
           </div>
         );
 
-      case 'ready':
-        return (
-          <div className="flex flex-col items-center justify-center gap-4 text-center p-6 min-h-[250px]">
-            <h2 className="text-xl font-bold">Crystal Shatter</h2>
-            <p className="text-muted-foreground">This experience uses your camera to overlay virtual, breakable objects onto your environment. Tap to smash them and release stress.</p>
-            <Button onClick={handleStartGame}>
-              Start Game
-            </Button>
-          </div>
-        )
-
-      case 'idle':
+      case 'intro':
       default:
         return (
           <div className="flex flex-col items-center justify-center gap-4 text-center p-6 min-h-[250px]">
-            <h2 className="text-xl font-bold">Crystal Shatter</h2>
-            <p className="text-muted-foreground">This experience uses your camera to overlay virtual, breakable objects onto your environment. Tap to smash them and release stress.</p>
-            <Button onClick={() => setGameState('requestingPermission')} disabled={gameState === 'requestingPermission'}>
+            <h2 className="text-xl font-bold">Crystal Shatter!</h2>
+            <p className="text-muted-foreground">This experience uses your camera to overlay virtual, breakable objects onto your environment. Tap the glowing crystals to release the stress they hold!</p>
+            <Button onClick={handleStartGameClick}>
                 <Camera className="mr-2 h-4 w-4" />
-                Enable Camera
+                Start Game
               </Button>
-            {hasCameraPermission === false && (
-                <Alert variant="destructive" className="w-auto text-left mt-4">
-                    <AlertTitle>Camera Access Denied</AlertTitle>
-                    <AlertDescription>
-                      Please allow camera access to use this feature.
-                    </AlertDescription>
-                </Alert>
-            )}
-             <p className="text-xs text-muted-foreground mt-2">Camera access is required to play.</p>
           </div>
         );
     }
