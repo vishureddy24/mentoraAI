@@ -101,17 +101,17 @@ export function FruitSlicerGame() {
   const drawGameObject = (ctx: CanvasRenderingContext2D, obj: GameObject) => {
     ctx.beginPath();
     if (obj.type === 'bomb') {
-        const bombIcon = new Bomb();
-        // This is a simplified way to draw an icon-like shape.
+        // Draw a simple circle for the bomb body
         ctx.fillStyle = '#333';
         ctx.arc(obj.x, obj.y, obj.radius, 0, Math.PI * 2);
         ctx.fill();
-        ctx.strokeStyle = '#fff';
-        ctx.lineWidth = 2;
-        ctx.moveTo(obj.x - 5, obj.y - 5);
-        ctx.lineTo(obj.x + 5, obj.y + 5);
-        ctx.moveTo(obj.x + 5, obj.y - 5);
-        ctx.lineTo(obj.x - 5, obj.y + 5);
+
+        // Draw a simple fuse
+        ctx.strokeStyle = '#8B4513'; // Brown color for the fuse
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.moveTo(obj.x, obj.y - obj.radius);
+        ctx.lineTo(obj.x + 5, obj.y - obj.radius - 5);
         ctx.stroke();
 
     } else {
