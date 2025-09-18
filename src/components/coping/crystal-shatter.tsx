@@ -9,7 +9,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { Progress } from '@/components/ui/progress';
 import { BreathingExercise } from './breathing-exercise';
 
-type GameState = 'idle' | 'requestingPermission' | 'gameStarted' | 'cooldown' | 'gameEnded';
+type GameState = 'idle' | 'requestingPermission' | 'ready' | 'gameStarted' | 'cooldown' | 'gameEnded';
 
 interface Crystal {
   id: number;
@@ -130,32 +130,27 @@ export function CrystalShatterGame() {
 
 
   useEffect(() => {
-    if (gameState === 'requestingPermission' && hasCameraPermission === null) {
-      const getCameraPermission = async () => {
-        try {
-          const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-          setHasCameraPermission(true);
-          if (videoRef.current) {
-            videoRef.current.srcObject = stream;
-            videoRef.current.onloadedmetadata = () => {
-                setGameState('idle');
-            }
-          } else {
-             setGameState('idle');
-          }
-        } catch (error) {
-          console.error('Error accessing camera:', error);
-          setHasCameraPermission(false);
-          setGameState('idle');
-          toast({
-            variant: 'destructive',
-            title: 'Camera Access Denied',
-            description: 'Please enable camera permissions in your browser settings to use this feature.',
-          });
+    const getCameraPermission = async () => {
+      if (gameState !== 'requestingPermission' || hasCameraPermission !== null) return;
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+        setHasCameraPermission(true);
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
         }
-      };
-      getCameraPermission();
-    }
+        setGameState('ready');
+      } catch (error) {
+        console.error('Error accessing camera:', error);
+        setHasCameraPermission(false);
+        setGameState('idle');
+        toast({
+          variant: 'destructive',
+          title: 'Camera Access Denied',
+          description: 'Please enable camera permissions in your browser settings to use this feature.',
+        });
+      }
+    };
+    getCameraPermission();
   }, [gameState, toast, hasCameraPermission]);
 
   useEffect(() => {
@@ -279,24 +274,29 @@ export function CrystalShatterGame() {
           </div>
         );
 
+      case 'ready':
+        return (
+          <div className="flex flex-col items-center justify-center gap-4 text-center p-6 min-h-[250px]">
+            <h2 className="text-xl font-bold">Crystal Shatter</h2>
+            <p className="text-muted-foreground">This experience uses your camera to overlay virtual, breakable objects onto your environment. Tap to smash them and release stress.</p>
+            <Button onClick={handleStartGame}>
+              Start Game
+            </Button>
+          </div>
+        )
+
       case 'idle':
       default:
         return (
           <div className="flex flex-col items-center justify-center gap-4 text-center p-6 min-h-[250px]">
             <h2 className="text-xl font-bold">Crystal Shatter</h2>
             <p className="text-muted-foreground">This experience uses your camera to overlay virtual, breakable objects onto your environment. Tap to smash them and release stress.</p>
-            {!hasCameraPermission ? (
-              <Button onClick={() => setGameState('requestingPermission')} disabled={gameState === 'requestingPermission'}>
+            <Button onClick={() => setGameState('requestingPermission')} disabled={gameState === 'requestingPermission'}>
                 <Camera className="mr-2 h-4 w-4" />
                 Enable Camera
               </Button>
-            ) : (
-                 <Button onClick={handleStartGame}>
-                    Start Game
-                 </Button>
-            )}
-            {hasCameraPermission === false && gameState === 'idle' && (
-                <Alert variant="destructive" className="w-auto text-left">
+            {hasCameraPermission === false && (
+                <Alert variant="destructive" className="w-auto text-left mt-4">
                     <AlertTitle>Camera Access Denied</AlertTitle>
                     <AlertDescription>
                       Please allow camera access to use this feature.
@@ -317,5 +317,3 @@ export function CrystalShatterGame() {
     </Card>
   );
 }
-
-    
