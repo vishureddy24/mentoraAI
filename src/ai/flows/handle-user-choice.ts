@@ -43,7 +43,7 @@ const handleUserChoiceFlow = ai.defineFlow(
         };
       case 'start_smash_stress':
         return {
-          response: "Let's try Crystal Shatter. I'll place some fragile crystals in your room. Tap them to release the stress they hold.",
+          response: "Let's try Crystal Shatter. It's a therapeutic game where you can safely release your frustration. I'll place some fragile crystals in your room. Tap them to release the stress they hold.",
           activity: 'crystal-shatter',
         };
       case 'start_journaling':
