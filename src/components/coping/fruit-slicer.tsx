@@ -3,38 +3,29 @@
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Camera, Loader2, Sparkles, Wind } from 'lucide-react';
+import { Camera, Loader2, Sparkles, XCircle, Bomb, Apple, CheckCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Progress } from '@/components/ui/progress';
-import { BreathingExercise } from './breathing-exercise';
 
-type GameState = 'idle' | 'requestingPermission' | 'ready' | 'gameStarted' | 'cooldown' | 'gameEnded';
+type GameState = 'idle' | 'requestingPermission' | 'ready' | 'playing' | 'gameOver';
 
 const FRUIT_TYPES = {
-  watermelon: { color: '#27a040', borderColor: '#084f18' }, // green
-  apple: { color: '#d92121', borderColor: '#8f0e0e' },      // red
-  orange: { color: '#f5a623', borderColor: '#b57b1b' },    // orange
+  apple: { color: '#d92121', icon: Apple },      // red
+  orange: { color: '#f5a623', icon: Apple },    // orange
+  watermelon: { color: '#27a040', icon: Apple }, // green
 };
 type FruitType = keyof typeof FRUIT_TYPES;
 
-interface Fruit {
+interface GameObject {
   id: number;
+  type: 'fruit' | 'bomb';
+  fruitType?: FruitType;
   x: number;
   y: number;
   vx: number;
   vy: number;
   radius: number;
-  type: FruitType;
   isSliced: boolean;
-  sliceAngle: number;
-  pieces: { x: number; y: number; vx: number; vy: number }[];
-}
-
-interface Slice {
-  id: number;
-  points: { x: number, y: number }[];
-  life: number;
 }
 
 export function FruitSlicerGame() {
@@ -43,18 +34,11 @@ export function FruitSlicerGame() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [gameState, setGameState] = useState<GameState>('idle');
-  const [fruits, setFruits] = useState<Fruit[]>([]);
-  const [slices, setSlices] = useState<Slice[]>([]);
+  const [gameObjects, setGameObjects] = useState<GameObject[]>([]);
   const [score, setScore] = useState(0);
-  const [stressLevel, setStressLevel] = useState(100);
-  const [gameTimer, setGameTimer] = useState(90);
-  const gameContainerRef = useRef<HTMLDivElement>(null);
+  const [gameTimer, setGameTimer] = useState(45);
   const animationFrameId = useRef<number>();
 
-  const isSlicing = useRef(false);
-  const lastSlicePoint = useRef<{x: number, y: number} | null>(null);
-
-  // Stop all video streams
   const cleanupCamera = useCallback(() => {
     if (videoRef.current && videoRef.current.srcObject) {
       (videoRef.current.srcObject as MediaStream).getTracks().forEach(track => track.stop());
@@ -63,7 +47,10 @@ export function FruitSlicerGame() {
   }, []);
 
   const requestCamera = useCallback(async () => {
-    if (hasCameraPermission) return;
+    if (hasCameraPermission) {
+        setGameState('ready');
+        return;
+    };
     setGameState('requestingPermission');
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ video: true });
@@ -86,13 +73,58 @@ export function FruitSlicerGame() {
   }, [hasCameraPermission, toast]);
 
   const startGame = () => {
-    setGameState('gameStarted');
+    setGameState('playing');
     setScore(0);
-    setStressLevel(100);
-    setFruits([]);
-    setGameTimer(90);
+    setGameObjects([]);
+    setGameTimer(45);
   };
   
+  const createGameObject = useCallback((canvasWidth: number, canvasHeight: number): GameObject => {
+    const isBomb = Math.random() < 0.2; // 20% chance of being a bomb
+    const fruitTypes = Object.keys(FRUIT_TYPES) as FruitType[];
+    const fruitType = fruitTypes[Math.floor(Math.random() * fruitTypes.length)];
+    return {
+      id: Date.now() + Math.random(),
+      type: isBomb ? 'bomb' : 'fruit',
+      fruitType: isBomb ? undefined : fruitType,
+      x: Math.random() * canvasWidth * 0.8 + canvasWidth * 0.1, // Spawn away from edges
+      y: canvasHeight + 50,
+      vx: (Math.random() - 0.5) * 6,
+      vy: -(Math.random() * 8 + 12), // Upward velocity
+      radius: isBomb ? 20 : Math.random() * 10 + 20,
+      isSliced: false,
+    };
+  }, []);
+
+  const drawGameObject = (ctx: CanvasRenderingContext2D, obj: GameObject) => {
+    ctx.beginPath();
+    if (obj.type === 'bomb') {
+        ctx.fillStyle = '#333';
+        ctx.arc(obj.x, obj.y, obj.radius, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#ffdd00';
+        ctx.fillRect(obj.x-3, obj.y-obj.radius-5, 6, 10);
+    } else {
+        if(obj.isSliced){
+            const { color } = FRUIT_TYPES[obj.fruitType!];
+            ctx.fillStyle = color;
+            // Draw two halves
+            ctx.beginPath();
+            ctx.arc(obj.x - 5, obj.y, obj.radius, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.beginPath();
+            ctx.arc(obj.x + 5, obj.y, obj.radius, 0, Math.PI * 2);
+            ctx.fill();
+        } else {
+            const { color } = FRUIT_TYPES[obj.fruitType!];
+            ctx.fillStyle = color;
+            ctx.arc(obj.x, obj.y, obj.radius, 0, Math.PI * 2);
+            ctx.fill();
+        }
+    }
+  };
+
+
   const gameLoop = useCallback(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -101,55 +133,38 @@ export function FruitSlicerGame() {
   
     ctx.clearRect(0, 0, canvas.width, canvas.height);
   
-    // Update and draw fruits
-    setFruits(prevFruits => {
-      const updatedFruits = prevFruits.map(fruit => {
-        if (fruit.isSliced) {
-          fruit.pieces.forEach(p => {
-            p.x += p.vx;
-            p.y += p.vy;
-            p.vy += 0.4; // Gravity on pieces
-          });
-        } else {
-          fruit.x += fruit.vx;
-          fruit.y += fruit.vy;
-          fruit.vy += 0.2; // Gravity on whole fruit
-        }
-        return fruit;
-      }).filter(fruit => fruit.y < canvas.height + 100); // Remove fruits that are off-screen
-      
-      // Draw
-      updatedFruits.forEach(fruit => drawFruit(ctx, fruit));
-      return updatedFruits;
-    });
+    setGameObjects(prevObjects => {
+        const updatedObjects = prevObjects.map(obj => {
+            obj.x += obj.vx;
+            obj.y += obj.vy;
+            obj.vy += 0.2; // Gravity
+            return obj;
+        }).filter(obj => obj.y < canvas.height + 100);
 
-    // Update and draw slices
-    setSlices(prevSlices => {
-        const updatedSlices = prevSlices.map(slice => ({ ...slice, life: slice.life - 1 })).filter(slice => slice.life > 0);
-        updatedSlices.forEach(slice => drawSlice(ctx, slice));
-        return updatedSlices;
+        updatedObjects.forEach(obj => drawGameObject(ctx, obj));
+        return updatedObjects;
     });
   
     animationFrameId.current = requestAnimationFrame(gameLoop);
   }, []);
   
   useEffect(() => {
-    if (gameState === 'gameStarted') {
-      const { width } = gameContainerRef.current!.getBoundingClientRect();
+    if (gameState === 'playing') {
+      const { width, height } = canvasRef.current!.getBoundingClientRect();
       
-      const fruitInterval = setInterval(() => {
-        setFruits(prev => [
+      const objectInterval = setInterval(() => {
+        setGameObjects(prev => [
           ...prev,
-          createFruit(width)
+          createGameObject(width, height)
         ]);
-      }, 1000); // Spawn a new fruit every second
+      }, 800); // Spawn a new object every 800ms
 
       const timerInterval = setInterval(() => {
         setGameTimer(prev => {
           if (prev <= 1) {
-            clearInterval(fruitInterval);
+            clearInterval(objectInterval);
             clearInterval(timerInterval);
-            setGameState('cooldown');
+            setGameState('gameOver');
             return 0;
           }
           return prev - 1;
@@ -159,154 +174,53 @@ export function FruitSlicerGame() {
       animationFrameId.current = requestAnimationFrame(gameLoop);
   
       return () => {
-        clearInterval(fruitInterval);
+        clearInterval(objectInterval);
         clearInterval(timerInterval);
         if (animationFrameId.current) cancelAnimationFrame(animationFrameId.current);
       };
     }
-  }, [gameState, gameLoop]);
+  }, [gameState, gameLoop, createGameObject]);
 
-  const createFruit = (canvasWidth: number): Fruit => {
-    const fruitTypes = Object.keys(FRUIT_TYPES) as FruitType[];
-    const type = fruitTypes[Math.floor(Math.random() * fruitTypes.length)];
-    return {
-      id: Date.now() + Math.random(),
-      x: Math.random() * canvasWidth,
-      y: canvasRef.current!.height + 50,
-      vx: (Math.random() - 0.5) * 8,
-      vy: - (Math.random() * 5 + 10), // Shoot upwards
-      radius: Math.random() * 10 + 20,
-      type: type,
-      isSliced: false,
-      sliceAngle: 0,
-      pieces: [],
-    };
-  };
 
-  const drawFruit = (ctx: CanvasRenderingContext2D, fruit: Fruit) => {
-    const { color, borderColor } = FRUIT_TYPES[fruit.type];
-    
-    if (fruit.isSliced) {
-        ctx.save();
-        ctx.translate(fruit.x, fruit.y);
-        ctx.rotate(fruit.sliceAngle);
-        // Draw two half-circles
-        fruit.pieces.forEach(p => {
-          ctx.fillStyle = color;
-          ctx.strokeStyle = borderColor;
-          ctx.lineWidth = 2;
-          ctx.beginPath();
-          ctx.arc(p.x, p.y, fruit.radius, 0, Math.PI);
-          ctx.closePath();
-          ctx.fill();
-          ctx.stroke();
-        });
-        ctx.restore();
-    } else {
-      ctx.fillStyle = color;
-      ctx.strokeStyle = borderColor;
-      ctx.lineWidth = 3;
-      ctx.beginPath();
-      ctx.arc(fruit.x, fruit.y, fruit.radius, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.stroke();
-    }
-  };
+  const handleCanvasClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    if (gameState !== 'playing') return;
 
-  const drawSlice = (ctx: CanvasRenderingContext2D, slice: Slice) => {
-    if (slice.points.length < 2) return;
-    ctx.strokeStyle = `rgba(255, 255, 255, ${0.5 * (slice.life / 30)})`;
-    ctx.lineWidth = 5;
-    ctx.beginPath();
-    ctx.moveTo(slice.points[0].x, slice.points[0].y);
-    for (let i = 1; i < slice.points.length; i++) {
-        ctx.lineTo(slice.points[i].x, slice.points[i].y);
-    }
-    ctx.stroke();
-  };
-
-  const handleSlice = (e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
-    if (gameState !== 'gameStarted' || !isSlicing.current) return;
-    
     const canvas = canvasRef.current!;
     const rect = canvas.getBoundingClientRect();
-    const currentPoint = 'touches' in e ? 
-        { x: e.touches[0].clientX - rect.left, y: e.touches[0].clientY - rect.top } : 
-        { x: e.clientX - rect.left, y: e.clientY - rect.top };
+    const clickX = e.clientX - rect.left;
+    const clickY = e.clientY - rect.top;
 
-    setSlices(prev => {
-        const currentSlice = prev[prev.length - 1];
-        if (currentSlice) {
-            currentSlice.points.push(currentPoint);
-        }
-        return [...prev];
-    });
-
-    if (lastSlicePoint.current) {
-        setFruits(prevFruits => prevFruits.map(fruit => {
-            if (fruit.isSliced) return fruit;
-            
-            const dist = Math.hypot(currentPoint.x - fruit.x, currentPoint.y - fruit.y);
-
-            if (dist < fruit.radius) {
-              setScore(s => s + 10);
-              setStressLevel(sl => Math.max(0, sl - 5));
-              const angle = Math.atan2(currentPoint.y - lastSlicePoint.current!.y, currentPoint.x - lastSlicePoint.current!.x);
-              return { 
-                ...fruit, 
-                isSliced: true,
-                sliceAngle: angle,
-                pieces: [
-                  { x: -fruit.radius / 2, y: 0, vx: -2, vy: -2 },
-                  { x: fruit.radius / 2, y: 0, vx: 2, vy: -2 },
-                ]
-              };
+    let hit = false;
+    setGameObjects(prev => prev.map(obj => {
+        if (!obj.isSliced && !hit) {
+            const dist = Math.hypot(clickX - obj.x, clickY - obj.y);
+            if (dist < obj.radius) {
+                hit = true;
+                if (obj.type === 'bomb') {
+                    setGameState('gameOver');
+                } else {
+                    setScore(s => s + 10);
+                    return { ...obj, isSliced: true };
+                }
             }
-            return fruit;
-        }));
-    }
-    lastSlicePoint.current = currentPoint;
-  };
-  
-  const startSlicing = (e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
-      isSlicing.current = true;
-      const canvas = canvasRef.current!;
-      const rect = canvas.getBoundingClientRect();
-      const point = 'touches' in e ? 
-        { x: e.touches[0].clientX - rect.left, y: e.touches[0].clientY - rect.top } : 
-        { x: e.clientX - rect.left, y: e.clientY - rect.top };
-      lastSlicePoint.current = point;
-      setSlices(prev => [...prev, {id: Date.now(), points: [point], life: 30}]);
+        }
+        return obj;
+    }));
   };
 
-  const endSlicing = () => {
-      isSlicing.current = false;
-      lastSlicePoint.current = null;
-  };
-
-  const handleReturnToChat = () => {
+  const resetGame = () => {
     cleanupCamera();
     setGameState('idle');
     setHasCameraPermission(null);
   };
   
-  useEffect(() => {
-    if (gameState === 'cooldown') {
-      const timer = setTimeout(() => {
-        setGameState('gameEnded');
-      }, 10000); // Cooldown for 10 seconds
-      return () => clearTimeout(timer);
-    }
-  }, [gameState]);
-
-
   const renderContent = () => {
     switch (gameState) {
       case 'idle':
         return (
-          <div className="flex flex-col items-center justify-center gap-4 text-center p-6 min-h-[250px]">
-            <h2 className="text-xl font-bold">Fruit Slicer!</h2>
-            <p className="text-muted-foreground">This experience uses your camera to create an interactive space. Swipe to slice the fruit and release your stress!</p>
+          <div className="flex flex-col items-center justify-center gap-4 text-center p-6 min-h-[300px]">
+            <h2 className="text-2xl font-bold">Fruit Frenzy! 🥑</h2>
+            <p className="text-muted-foreground">This experience uses your camera. Tap the fruit as fast as you can to slice it! Avoid tapping the bombs.</p>
             <Button onClick={requestCamera}>
               <Camera className="mr-2 h-4 w-4" />
               Enable Camera
@@ -315,7 +229,7 @@ export function FruitSlicerGame() {
         );
       case 'requestingPermission':
         return (
-          <div className="flex flex-col items-center justify-center gap-4 text-center p-6 min-h-[250px]">
+          <div className="flex flex-col items-center justify-center gap-4 text-center p-6 min-h-[300px]">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
             <p>Requesting camera access...</p>
             {hasCameraPermission === false && <Alert variant="destructive" className="mt-4">
@@ -326,70 +240,76 @@ export function FruitSlicerGame() {
         );
       case 'ready':
          return (
-          <div className="flex flex-col items-center justify-center gap-4 text-center p-6 min-h-[250px]">
-            <h2 className="text-xl font-bold">Ready to Slice?</h2>
+          <div className="flex flex-col items-center justify-center gap-4 text-center p-6 min-h-[300px]">
+            <h2 className="text-2xl font-bold">Ready?</h2>
             <div className="relative w-full aspect-video rounded-lg overflow-hidden bg-black max-w-sm">
               <video ref={videoRef} className="w-full h-full object-cover" autoPlay muted playsInline />
               <div className="absolute inset-0 bg-black/30 flex items-center justify-center">
                  <Button onClick={startGame} size="lg">Start Game</Button>
               </div>
             </div>
+             <Button variant="link" onClick={resetGame}>Back to Menu</Button>
           </div>
         );
-      case 'gameStarted':
+      case 'playing':
         return (
-          <div ref={gameContainerRef} className="relative w-full aspect-video max-h-[80vh] bg-gray-800 rounded-lg overflow-hidden cursor-crosshair">
+          <div className="relative w-full aspect-video max-h-[80vh] bg-gray-800 rounded-lg overflow-hidden cursor-pointer">
             <video ref={videoRef} className="absolute inset-0 w-full h-full object-cover opacity-30" autoPlay muted playsInline />
             <canvas 
               ref={canvasRef}
               width={gameContainerRef.current?.clientWidth || 640}
               height={gameContainerRef.current?.clientHeight || 360}
               className="absolute inset-0 w-full h-full"
-              onMouseDown={startSlicing}
-              onMouseUp={endSlicing}
-              onMouseLeave={endSlicing}
-              onMouseMove={handleSlice}
-              onTouchStart={startSlicing}
-              onTouchEnd={endSlicing}
-              onTouchMove={handleSlice}
+              onClick={handleCanvasClick}
             />
             <div className="absolute top-2 left-2 right-2 text-white bg-black/50 p-2 rounded-lg">
                 <div className='flex justify-between items-center text-lg font-bold'>
                     <p>Time: {gameTimer}</p>
                     <p>Score: {score}</p>
                 </div>
-                <div className="mt-2">
-                  <p className="text-xs text-center mb-1">Stress Level</p>
-                  <Progress value={stressLevel} className="h-2" />
-                </div>
             </div>
           </div>
         );
-      case 'cooldown':
+      case 'gameOver':
         return (
-          <div className="w-full max-w-md">
-            <p className="text-center font-semibold mb-2">Great job! Time to cool down.</p>
-            <BreathingExercise />
-          </div>
-        );
-      case 'gameEnded':
-        return (
-          <div className="flex flex-col items-center justify-center gap-4 text-center p-10 min-h-[250px] animate-in fade-in">
-            <Sparkles className="h-10 w-10 text-primary" />
-            <h3 className="text-xl font-semibold">You destroyed your stress with a score of {score}!</h3>
-            <p className="text-muted-foreground">You reduced your stress level by {100 - stressLevel}%. Awesome work.</p>
-            <p className="mt-4">Take a deep breath and feel the space you've created.</p>
-            <Button onClick={handleReturnToChat} className="mt-4">Return to Chat</Button>
+          <div className="flex flex-col items-center justify-center gap-4 text-center p-10 min-h-[300px] animate-in fade-in">
+            {score > 0 ? (
+                <Sparkles className="h-10 w-10 text-primary" />
+            ) : (
+                <Bomb className="h-10 w-10 text-destructive" />
+            )}
+            <h3 className="text-2xl font-semibold">Game Over!</h3>
+            <p className="text-xl">Your Score: {score}</p>
+            <p className="text-muted-foreground mt-2">Great job focusing your energy! Hope that helped.</p>
+            <div className='flex gap-4 mt-4'>
+                <Button onClick={startGame}>Play Again</Button>
+                <Button onClick={resetGame} variant="secondary">Return to Menu</Button>
+            </div>
           </div>
         );
       default:
         return null;
     }
   };
+  
+  const gameContainerRef = useRef<HTMLDivElement>(null);
+  
+  useEffect(() => {
+    const resizeCanvas = () => {
+      if (canvasRef.current && gameContainerRef.current) {
+        canvasRef.current.width = gameContainerRef.current.clientWidth;
+        canvasRef.current.height = gameContainerRef.current.clientHeight;
+      }
+    };
+    window.addEventListener('resize', resizeCanvas);
+    resizeCanvas();
+    return () => window.removeEventListener('resize', resizeCanvas);
+  }, [gameState]);
+
 
   return (
-    <Card className="w-full max-w-md bg-background/50 border-accent/20">
-      <CardContent className="p-2 flex justify-center items-center">
+    <Card className="w-full max-w-2xl bg-background/50 border-accent/20">
+      <CardContent className="p-2 flex justify-center items-center" ref={gameContainerRef}>
         {renderContent()}
       </CardContent>
     </Card>
