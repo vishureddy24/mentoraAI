@@ -126,7 +126,7 @@ export function CrystalShatterGame() {
     }, 1000 / 60);
   
     return () => clearInterval(interval);
-  }, [gameState, particles]);
+  }, [gameState]);
 
 
   useEffect(() => {
@@ -137,8 +137,12 @@ export function CrystalShatterGame() {
           setHasCameraPermission(true);
           if (videoRef.current) {
             videoRef.current.srcObject = stream;
+            videoRef.current.onloadedmetadata = () => {
+                setGameState('idle');
+            }
+          } else {
+             setGameState('idle');
           }
-          setGameState('idle');
         } catch (error) {
           console.error('Error accessing camera:', error);
           setHasCameraPermission(false);
@@ -167,13 +171,14 @@ export function CrystalShatterGame() {
 
   const handleStartGame = () => {
     const canvas = canvasRef.current;
-    if (canvas) {
-        const { width, height } = canvas.getBoundingClientRect();
+    if (canvas && gameContainerRef.current) {
+        const { width, height } = gameContainerRef.current.getBoundingClientRect();
         canvas.width = width;
         canvas.height = height;
         setCrystals(generateCrystals(width, height));
     }
     setStressLevel(100);
+    setParticles([]);
     setTimer(90);
     setGameState('gameStarted');
   };
@@ -250,7 +255,7 @@ export function CrystalShatterGame() {
                     <p>Stress Meter</p>
                     <p>Time Left: {timer}s</p>
                 </div>
-                <Progress value={stressLevel} className="h-2" />
+                <Progress value={100 - stressLevel} className="h-2 [&>div]:bg-green-400" />
             </div>
           </div>
         );
@@ -290,9 +295,9 @@ export function CrystalShatterGame() {
                     Start Game
                  </Button>
             )}
-            {hasCameraPermission === false && (
+            {hasCameraPermission === false && gameState === 'idle' && (
                 <Alert variant="destructive" className="w-auto text-left">
-                    <AlertTitle>Camera Access Required</AlertTitle>
+                    <AlertTitle>Camera Access Denied</AlertTitle>
                     <AlertDescription>
                       Please allow camera access to use this feature.
                     </AlertDescription>
