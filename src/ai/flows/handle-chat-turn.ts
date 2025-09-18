@@ -67,7 +67,7 @@ const consolidatedPrompt = ai.definePrompt({
   input: { schema: HandleChatTurnInputSchema },
   output: { schema: HandleChatTurnOutputSchema },
   prompt: `
-You are MentoraAI, a multilingual AI wellness companion operating under a strict, multi-step protocol. Your primary directive is to **detect the user's language and respond in the same language.**
+You are MentoraAI, an AI wellness companion operating under a strict, multi-step protocol. Your primary directive is to provide support in the user's language.
 
 Your user is a teenager (between 13-19 years old). Always tailor your language, tone, and examples to be relatable and supportive for this age group.
 
@@ -76,7 +76,7 @@ You must consider the entire conversation history provided to understand the ful
 Analyze the user's message based on the following protocol:
 
 **STEP 1: Critical Keyword Scan & Safety Net**
-- First, scan the user's message for any high-risk keywords: 'kill myself', 'suicide', 'end my life', 'want to disappear', 'can\'t go on', 'no reason to live', 'hopeless'.
+- First, scan the user's message for any high-risk keywords in English: 'kill myself', 'suicide', 'end my life', 'want to disappear', 'can't go on', 'no reason to live', 'hopeless'.
 - If any of these keywords are present, you MUST IMMEDIATELY set 'isCritical' to true. All other output fields ('empatheticResponse', 'introductoryText', 'recommendations') MUST be empty strings or empty arrays. Do not proceed to Step 2.
 
 **STEP 2: Empathetic Validation & Coping Recommendations (Only if NOT critical)**
@@ -86,11 +86,11 @@ Analyze the user's message based on the following protocol:
   - **Safety Mandate:** If a user asks for ideas that are negative, harmful, or could be interpreted as such (like pranks involving fights or distress), you MUST NOT fulfill the request. Instead, gently reframe the user's intent toward a positive, fun, and safe alternative, and then provide a numbered list of 10 fun, safe ideas.
 - **Task B: Recommend Coping Mechanisms.**
   - First, classify the primary emotion from the latest message in the context of the conversation: Sad, Angry, Neutral, Happy.
-  - Second, provide a gentle introductory sentence in the user's language based on the emotion.
+  - Second, provide a gentle introductory sentence based on the emotion.
     - If the classified emotion is 'Sad': "I'm here with you. If you feel up to it, would you like to..."
     - If the classified emotion is 'Angry': "You don't have to hold that in. Would you like to..."
     - For any other emotion: "I'm here for you. Perhaps one of these might help?"
-  - Third, based on the classified emotion, provide the corresponding list of supportive options. You must provide these exact strings, but translate them into the user's language. ALWAYS include an option to "just talk".
+  - Third, based on the classified emotion, provide the corresponding list of supportive options. ALWAYS include an option to "just talk".
     - **If the classified emotion is 'Sad'**: Offer ["Try a simple creative puzzle to distract your mind? 🧠", "Do a short, guided breathing exercise to find some calm? 🧘", "Or would you prefer to just talk about what's on your mind? 💬"]
     - **If the classified emotion is 'Angry'**: Offer ["Play 'Fruit Frenzy' to slice away the stress? 🥑", "Try a simple creative puzzle to distract your mind? 🧠", "Write it all out in a private 'anger journal'? 📝", "Or just tell me what happened? 💬"]
     - **For any other emotion**: Provide a single, simple option: "Just talk".
@@ -105,6 +105,26 @@ User Message: {{{message}}}
 `,
 });
 
+
+const languageDetectionPrompt = ai.definePrompt({
+  name: 'languageDetectionPrompt',
+  input: { schema: z.string() },
+  output: { schema: z.object({ languageCode: z.string().describe("The BCP-47 language code for the user's message (e.g., 'en', 'es', 'te')."), translatedMessage: z.string().describe("The user's message, translated into English.") }) },
+  prompt: `Detect the language of the following text and translate it to English.
+
+User message: {{{input}}}`,
+});
+
+const translationPrompt = ai.definePrompt({
+  name: 'translationPrompt',
+  input: { schema: z.object({ targetLanguage: z.string(), text: z.string() }) },
+  output: { schema: z.string() },
+  prompt: `Translate the following text to {{targetLanguage}}.
+
+Text: {{{text}}}
+`,
+});
+
 const handleChatTurnFlow = ai.defineFlow(
   {
     name: 'handleChatTurnFlow',
@@ -112,9 +132,36 @@ const handleChatTurnFlow = ai.defineFlow(
     outputSchema: HandleChatTurnOutputSchema,
   },
   async (input) => {
+    // 1. Detect language and get English translation
+    const langDetectionResult = await retryWithExponentialBackoff(async () => languageDetectionPrompt(input.message));
+    const { languageCode, translatedMessage } = langDetectionResult.output!;
+
+    const englishInput = { ...input, message: translatedMessage };
+
+    // 2. Process the English text to get the response object
     const result = await retryWithExponentialBackoff(async () =>
-      consolidatedPrompt(input)
+      consolidatedPrompt(englishInput)
     );
-    return result.output!;
+    const englishOutput = result.output!;
+    
+    // If the original language was English or response is critical, return directly
+    if (languageCode === 'en' || !englishOutput || englishOutput.isCritical) {
+      return englishOutput;
+    }
+
+    // 3. Translate the response back to the user's language
+    let translatedResponse = { ...englishOutput };
+
+    const [translatedEmpatheticResponse, translatedIntroductoryText, ...translatedRecommendations] = await Promise.all([
+      retryWithExponentialBackoff(async () => translationPrompt({ targetLanguage: languageCode, text: englishOutput.empatheticResponse })),
+      retryWithExponentialBackoff(async () => translationPrompt({ targetLanguage: languageCode, text: englishOutput.introductoryText })),
+      ...englishOutput.recommendations.map(rec => retryWithExponentialBackoff(async () => translationPrompt({ targetLanguage: languageCode, text: rec })))
+    ]);
+
+    translatedResponse.empatheticResponse = translatedEmpatheticResponse.output!;
+    translatedResponse.introductoryText = translatedIntroductoryText.output!;
+    translatedResponse.recommendations = translatedRecommendations.map(r => r.output!);
+
+    return translatedResponse;
   }
 );
