@@ -131,7 +131,7 @@ export function CrystalShatterGame() {
 
   useEffect(() => {
     const getCameraPermission = async () => {
-      if (gameState !== 'requestingPermission' || hasCameraPermission !== null) return;
+      if (gameState !== 'requestingPermission') return;
       try {
         const stream = await navigator.mediaDevices.getUserMedia({ video: true });
         setHasCameraPermission(true);
@@ -151,7 +151,7 @@ export function CrystalShatterGame() {
       }
     };
     getCameraPermission();
-  }, [gameState, toast, hasCameraPermission]);
+  }, [gameState, toast]);
 
   useEffect(() => {
     if (gameState === 'gameStarted' && (timer <= 0 || stressLevel <= 0)) {
