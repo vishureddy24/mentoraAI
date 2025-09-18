@@ -149,7 +149,7 @@ export function ChatInterface() {
         const choices = (
           <div className="flex flex-wrap gap-2">
             {result.recommendations.map((rec, index) => {
-              const key = rec.toLowerCase().replace(/ \p{Emoji}/gu, '').replace(/[^\w\s-?']/gi, '').trim();
+              const key = rec.toLowerCase().replace(/ \p{Emoji}/gu, '').replace(/[^\w\s-?'!]/gi, '').trim();
               const choiceDetails = choiceMap[key];
               if (!choiceDetails) {
                 console.warn(`No choice mapping found for recommendation: "${rec}" (key: "${key}")`);
