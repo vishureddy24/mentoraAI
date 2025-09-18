@@ -152,15 +152,53 @@ const handleChatTurnFlow = ai.defineFlow(
     // 3. Translate the response back to the user's language
     let translatedResponse = { ...englishOutput };
 
-    const [translatedEmpatheticResponse, translatedIntroductoryText, ...translatedRecommendations] = await Promise.all([
-      retryWithExponentialBackoff(async () => translationPrompt({ targetLanguage: languageCode, text: englishOutput.empatheticResponse })),
-      retryWithExponentialBackoff(async () => translationPrompt({ targetLanguage: languageCode, text: englishOutput.introductoryText })),
-      ...englishOutput.recommendations.map(rec => retryWithExponentialBackoff(async () => translationPrompt({ targetLanguage: languageCode, text: rec })))
-    ]);
+    // Create a list of promises for all translation tasks
+    const translationPromises = [];
 
-    translatedResponse.empatheticResponse = translatedEmpatheticResponse.output!;
-    translatedResponse.introductoryText = translatedIntroductoryText.output!;
-    translatedResponse.recommendations = translatedRecommendations.map(r => r.output!);
+    // Translate empatheticResponse if it exists
+    if (englishOutput.empatheticResponse) {
+      translationPromises.push(
+        retryWithExponentialBackoff(async () => 
+          translationPrompt({ targetLanguage: languageCode, text: englishOutput.empatheticResponse })
+        ).then(res => ({ type: 'empatheticResponse', text: res.output! }))
+      );
+    }
+
+    // Translate introductoryText if it exists
+    if (englishOutput.introductoryText) {
+      translationPromises.push(
+        retryWithExponentialBackoff(async () => 
+          translationPrompt({ targetLanguage: languageCode, text: englishOutput.introductoryText })
+        ).then(res => ({ type: 'introductoryText', text: res.output! }))
+      );
+    }
+    
+    // Translate all recommendations
+    englishOutput.recommendations.forEach((rec, index) => {
+      translationPromises.push(
+        retryWithExponentialBackoff(async () => 
+          translationPrompt({ targetLanguage: languageCode, text: rec })
+        ).then(res => ({ type: 'recommendation', index, text: res.output! }))
+      );
+    });
+
+    // Execute all translations in parallel
+    const translations = await Promise.all(translationPromises);
+    
+    const translatedRecommendations = new Array(englishOutput.recommendations.length);
+
+    // Apply the translated texts to the response object
+    for (const translation of translations) {
+      if (translation.type === 'empatheticResponse') {
+        translatedResponse.empatheticResponse = translation.text;
+      } else if (translation.type === 'introductoryText') {
+        translatedResponse.introductoryText = translation.text;
+      } else if (translation.type === 'recommendation') {
+        translatedRecommendations[translation.index] = translation.text;
+      }
+    }
+    
+    translatedResponse.recommendations = translatedRecommendations;
 
     return translatedResponse;
   }
