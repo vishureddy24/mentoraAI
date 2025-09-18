@@ -3,7 +3,7 @@
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Camera, Loader2, Sparkles, XCircle, Bomb, Apple, CheckCircle } from 'lucide-react';
+import { Camera, Loader2, Sparkles, Bomb, Apple } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useState, useEffect, useRef, useCallback } from 'react';
 
@@ -38,6 +38,8 @@ export function FruitSlicerGame() {
   const [score, setScore] = useState(0);
   const [gameTimer, setGameTimer] = useState(45);
   const animationFrameId = useRef<number>();
+  const gameContainerRef = useRef<HTMLDivElement>(null);
+
 
   const cleanupCamera = useCallback(() => {
     if (videoRef.current && videoRef.current.srcObject) {
@@ -124,7 +126,6 @@ export function FruitSlicerGame() {
     }
   };
 
-
   const gameLoop = useCallback(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -135,10 +136,11 @@ export function FruitSlicerGame() {
   
     setGameObjects(prevObjects => {
         const updatedObjects = prevObjects.map(obj => {
-            obj.x += obj.vx;
-            obj.y += obj.vy;
-            obj.vy += 0.2; // Gravity
-            return obj;
+            const newObj = { ...obj };
+            newObj.x += newObj.vx;
+            newObj.y += newObj.vy;
+            newObj.vy += 0.2; // Gravity
+            return newObj;
         }).filter(obj => obj.y < canvas.height + 100);
 
         updatedObjects.forEach(obj => drawGameObject(ctx, obj));
@@ -146,11 +148,13 @@ export function FruitSlicerGame() {
     });
   
     animationFrameId.current = requestAnimationFrame(gameLoop);
-  }, []);
+  }, [drawGameObject]);
   
   useEffect(() => {
     if (gameState === 'playing') {
-      const { width, height } = canvasRef.current!.getBoundingClientRect();
+      const canvas = canvasRef.current;
+      if(!canvas) return;
+      const { width, height } = canvas.getBoundingClientRect();
       
       const objectInterval = setInterval(() => {
         setGameObjects(prev => [
@@ -200,12 +204,12 @@ export function FruitSlicerGame() {
                     setGameState('gameOver');
                 } else {
                     setScore(s => s + 10);
-                    return { ...obj, isSliced: true };
+                    return { ...obj, isSliced: true, vy: obj.vy + 2 }; // Make sliced pieces fall faster
                 }
             }
         }
         return obj;
-    }));
+    }).filter(obj => !obj.isSliced || obj.y < canvas.height + 50)); // remove sliced items once offscreen
   };
 
   const resetGame = () => {
@@ -213,6 +217,18 @@ export function FruitSlicerGame() {
     setGameState('idle');
     setHasCameraPermission(null);
   };
+  
+  useEffect(() => {
+    const resizeCanvas = () => {
+      if (canvasRef.current && gameContainerRef.current) {
+        canvasRef.current.width = gameContainerRef.current.clientWidth;
+        canvasRef.current.height = gameContainerRef.current.clientHeight;
+      }
+    };
+    window.addEventListener('resize', resizeCanvas);
+    resizeCanvas();
+    return () => window.removeEventListener('resize', resizeCanvas);
+  }, [gameState]);
   
   const renderContent = () => {
     switch (gameState) {
@@ -257,8 +273,6 @@ export function FruitSlicerGame() {
             <video ref={videoRef} className="absolute inset-0 w-full h-full object-cover opacity-30" autoPlay muted playsInline />
             <canvas 
               ref={canvasRef}
-              width={gameContainerRef.current?.clientWidth || 640}
-              height={gameContainerRef.current?.clientHeight || 360}
               className="absolute inset-0 w-full h-full"
               onClick={handleCanvasClick}
             />
@@ -291,21 +305,6 @@ export function FruitSlicerGame() {
         return null;
     }
   };
-  
-  const gameContainerRef = useRef<HTMLDivElement>(null);
-  
-  useEffect(() => {
-    const resizeCanvas = () => {
-      if (canvasRef.current && gameContainerRef.current) {
-        canvasRef.current.width = gameContainerRef.current.clientWidth;
-        canvasRef.current.height = gameContainerRef.current.clientHeight;
-      }
-    };
-    window.addEventListener('resize', resizeCanvas);
-    resizeCanvas();
-    return () => window.removeEventListener('resize', resizeCanvas);
-  }, [gameState]);
-
 
   return (
     <Card className="w-full max-w-2xl bg-background/50 border-accent/20">
