@@ -71,6 +71,7 @@ export function ChatInterface() {
 
     try {
       const result = await handleUserChoice({ action });
+      console.log("--> FRONTEND RECEIVED:", result);
 
       const newModelMessages: Message[] = [{
         id: Date.now().toString() + '-response',
@@ -79,6 +80,7 @@ export function ChatInterface() {
       }];
       
       if (result.activity) {
+        console.log("--> SETTING ACTIVITY TO:", result.activity);
         const ActivityComponent = activityMap[result.activity];
         if (ActivityComponent) {
           newModelMessages.push({
@@ -149,12 +151,12 @@ export function ChatInterface() {
         const choices = (
           <div className="flex flex-wrap gap-2">
             {result.recommendations.map((rec, index) => {
-              const key = rec.toLowerCase().replace(/ \p{Emoji}/gu, '').replace(/[^\w\s-?'!]/gi, '').trim();
-              const choiceDetails = choiceMap[key];
-              if (!choiceDetails) {
-                console.warn(`No choice mapping found for recommendation: "${rec}" (key: "${key}")`);
+              const key = Object.keys(choiceMap).find(k => rec.toLowerCase().includes(k.replace(/[^\w\s-?'!]/gi, '')))
+              if (!key) {
+                console.warn(`No choice mapping found for recommendation: "${rec}"`);
                 return null;
               }
+              const choiceDetails = choiceMap[key];
               const Icon = choiceDetails.icon;
               return (
                 <Button key={index} variant="outline" onClick={() => handleChoiceClick(choiceDetails.action, choiceDetails.label)} className="bg-background/80 text-left h-auto whitespace-normal">

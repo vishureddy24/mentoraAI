@@ -30,36 +30,45 @@ const handleUserChoiceFlow = ai.defineFlow(
     outputSchema: HandleUserChoiceOutputSchema,
   },
   async (input) => {
+    let result;
     switch (input.action) {
       case 'start_breathing':
-        return {
+        result = {
           response: "Of course. Find a comfortable position. We'll start with a simple breathing exercise to help calm your mind.",
           activity: 'breathing',
         };
+        break;
       case 'start_puzzle':
-        return {
+        result = {
           response: "Great choice. Let's engage your mind with a little puzzle. Here's one for you.",
           activity: 'puzzles',
         };
+        break;
       case 'start_crystal_shatter':
-        return {
+        result = {
           response: "Let's try Crystal Shatter. It's a therapeutic game where you can safely release your frustration by breaking virtual crystals.",
           activity: 'crystal-shatter',
         };
+        break;
       case 'start_journaling':
-        return {
+        result = {
           response: "This is a safe space to let it all out. Write down whatever is on your mind. It will be securely deleted when you're done.",
           activity: 'journal',
         };
+        break;
       case 'start_talk':
-        return {
+        result = {
           response: "Of course. I'm here to listen. What's on your mind?",
         };
+        break;
       default:
-        return {
+        result = {
           response: "I'm sorry, I didn't understand that choice. Let's just talk. How can I help?",
         };
+        break;
     }
+    console.log("--> BACKEND SENDING:", result);
+    return result;
   }
 );
 
