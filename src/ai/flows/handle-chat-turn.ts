@@ -93,7 +93,7 @@ If not critical and not a simple greeting:
   - Other → "I'm here for you. Perhaps one of these might help?"
 - Coping recommendations (use these EXACT strings):
   - Sad → ["try a simple puzzle 🧠", "do a breathing exercise 🧘", "just talk 💬"]
-  - Angry → ["play 'fruit frenzy' 🥑", "write in a journal 📝", "just talk 💬"]
+  - Angry → ["try a simple puzzle 🧠", "write in a journal 📝", "just talk 💬"]
   - Other → ["just talk 💬"]
 
 Conversation History:
