@@ -97,9 +97,9 @@ If not critical and not a simple greeting:
   - Angry → "You don't have to hold that in. Would you like to..."
   - Other → "I'm here for you. Perhaps one of these might help?"
 - Coping recommendations (use these EXACT strings):
-  - Sad → ["Try a simple puzzle 🧠", "Do a breathing exercise 🧘", "Or just talk 💬"]
-  - Angry → ["Play 'Fruit Frenzy' 🥑", "Try a puzzle 🧠", "Write in a journal 📝", "Or just talk 💬"]
-  - Other → ["Just talk 💬"]
+  - Sad → ["try a simple puzzle 🧠", "do a breathing exercise 🧘", "or just talk 💬"]
+  - Angry → ["play 'fruit frenzy' 🥑", "try a simple puzzle 🧠", "write in a journal 📝", "or just talk 💬"]
+  - Other → ["just talk 💬"]
 
 Conversation History:
 {{#each history}}
