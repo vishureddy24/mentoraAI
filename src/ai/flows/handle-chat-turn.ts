@@ -26,7 +26,6 @@ const MessageSchema = z.object({
 const HandleChatTurnInputSchema = z.object({
   message: z.string().describe('The latest user message to analyze.'),
   history: z.array(MessageSchema).describe('The history of the conversation so far.'),
-  languageCode: z.string().optional().describe('The BCP-47 language code of the user message.'),
 });
 export type HandleChatTurnInput = z.infer<typeof HandleChatTurnInputSchema>;
 
@@ -65,7 +64,7 @@ export async function handleChatTurn(
 const consolidatedPrompt = ai.definePrompt({
   name: 'handleChatTurnPrompt',
   input: { schema: HandleChatTurnInputSchema },
-  output: { schema: HandleChatTurnOutputSchema },
+  output: { schema: Omit<HandleChatTurnOutput, ['languageCode']> },
   prompt: `
 You are MentoraAI, an AI wellness companion. Always reply in warm, teen-friendly, empathetic language.  
 
@@ -148,32 +147,37 @@ const handleChatTurnFlow = ai.defineFlow(
       consolidatedPrompt(englishInput)
     );
     let englishOutput = result.output!;
-    englishOutput.languageCode = languageCode;
-    console.log("--> ENGLISH OUTPUT:", JSON.stringify(englishOutput, null, 2));
 
-    // If English or critical → return directly (languageCode will be passed through for safety net)
+    // Pass language code through for safety net
+    const outputWithLangCode = { ...englishOutput, languageCode };
+    console.log("--> ENGLISH OUTPUT:", JSON.stringify(outputWithLangCode, null, 2));
+
+
+    // If English or critical → return directly
     if (languageCode === 'en' || !englishOutput || englishOutput.isCritical) {
-      return englishOutput;
+      return outputWithLangCode;
     }
 
     // 3. Translate back to user’s language
     let finalResponse: HandleChatTurnOutput = {
       ...englishOutput,
+      languageCode: languageCode,
       empatheticResponse: '',
       introductoryText: '',
       recommendations: [],
     };
 
     try {
+      // Use sequential translation for better reliability
       if (englishOutput.empatheticResponse) {
-        const t = await retryWithExponentialBackoff(async () =>
+        const t = await retryWithExponentialBackoff(() => 
           translationPrompt({ targetLanguage: languageCode, text: englishOutput.empatheticResponse })
         );
         finalResponse.empatheticResponse = t.output!;
       }
 
       if (englishOutput.introductoryText) {
-        const t = await retryWithExponentialBackoff(async () =>
+        const t = await retryWithExponentialBackoff(() => 
           translationPrompt({ targetLanguage: languageCode, text: englishOutput.introductoryText })
         );
         finalResponse.introductoryText = t.output!;
@@ -182,7 +186,7 @@ const handleChatTurnFlow = ai.defineFlow(
       if (englishOutput.recommendations?.length) {
         const translatedRecs: string[] = [];
         for (const rec of englishOutput.recommendations) {
-          const t = await retryWithExponentialBackoff(async () =>
+           const t = await retryWithExponentialBackoff(() => 
             translationPrompt({ targetLanguage: languageCode, text: rec })
           );
           translatedRecs.push(t.output!);
@@ -191,9 +195,8 @@ const handleChatTurnFlow = ai.defineFlow(
       }
     } catch (err) {
       console.error("Translation error → fallback to English:", err);
-      // If translation fails, return the untranslated English object.
-      // The languageCode is still present.
-      return englishOutput; 
+      // If translation fails, return the untranslated English object with the language code.
+      return outputWithLangCode;
     }
 
     console.log("--> FINAL OUTPUT:", JSON.stringify(finalResponse, null, 2));
