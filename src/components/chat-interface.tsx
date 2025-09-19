@@ -135,7 +135,7 @@ export function ChatInterface() {
       const result = await handleChatTurn({ message: userInput, history: history.slice(0, -1) });
 
       if (result.isCritical) {
-        const safetyResponse = await safetyNetProtocol({});
+        const safetyResponse = await safetyNetProtocol({ languageCode: result.languageCode });
         setMessages(prev => [
           ...prev,
           { id: Date.now().toString() + '-safety', role: 'model', type: 'safety-net', content: safetyResponse.message },

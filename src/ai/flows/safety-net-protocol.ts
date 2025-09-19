@@ -12,7 +12,9 @@ import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
 import { retryWithExponentialBackoff } from '../utils';
 
-const SafetyNetProtocolInputSchema = z.object({})
+const SafetyNetProtocolInputSchema = z.object({
+    languageCode: z.string().optional().describe("The BCP-47 language code to translate the response into. Defaults to 'en' if not provided."),
+})
 export type SafetyNetProtocolInput = z.infer<typeof SafetyNetProtocolInputSchema>;
 
 const SafetyNetProtocolOutputSchema = z.object({
@@ -24,11 +26,7 @@ export async function safetyNetProtocol(input: SafetyNetProtocolInput): Promise<
   return safetyNetProtocolFlow(input);
 }
 
-const prompt = ai.definePrompt({
-  name: 'safetyNetProtocolPrompt',
-  input: {schema: SafetyNetProtocolInputSchema},
-  output: {schema: SafetyNetProtocolOutputSchema},
-  prompt: `It sounds like you are in a lot of pain, and your safety is the most important thing. Please know there are people who can help you right now. Here are some resources you can reach out to for immediate support:
+const englishSafetyMessage = `It sounds like you are in a lot of pain, and your safety is the most important thing. Please know there are people who can help you right now. Here are some resources you can reach out to for immediate support:
 
 National Suicide Prevention Lifeline:
 Phone: 988
@@ -41,7 +39,15 @@ The Trevor Project (for LGBTQ youth):
 Phone: 1-866-488-7386
 Website: https://www.thetrevorproject.org
 
-Please, take a moment to connect with one of them. ❤️‍🩹`,
+Please, take a moment to connect with one of them. ❤️‍🩹`;
+
+const translationPrompt = ai.definePrompt({
+    name: 'safetyNetTranslationPrompt',
+    input: { schema: z.object({ targetLanguage: z.string(), text: z.string() }) },
+    output: { schema: z.string() },
+    prompt: `Translate the following safety message to {{targetLanguage}}. Keep the formatting, phone numbers, and URLs exactly the same.
+
+Text: {{{text}}}`,
 });
 
 const safetyNetProtocolFlow = ai.defineFlow(
@@ -50,8 +56,19 @@ const safetyNetProtocolFlow = ai.defineFlow(
     inputSchema: SafetyNetProtocolInputSchema,
     outputSchema: SafetyNetProtocolOutputSchema,
   },
-  async input => {
-    const result = await retryWithExponentialBackoff(async () => prompt(input));
-    return result.output!;
+  async ({ languageCode }) => {
+    if (!languageCode || languageCode === 'en') {
+        return { message: englishSafetyMessage };
+    }
+    
+    try {
+        const translatedResult = await retryWithExponentialBackoff(async () => 
+            translationPrompt({ targetLanguage: languageCode, text: englishSafetyMessage })
+        );
+        return { message: translatedResult.output! };
+    } catch(err) {
+        console.error("Safety net translation error -> falling back to English", err);
+        return { message: englishSafetyMessage };
+    }
   }
 );

@@ -1,4 +1,3 @@
-
 'use server';
 
 /**
@@ -27,6 +26,7 @@ const MessageSchema = z.object({
 const HandleChatTurnInputSchema = z.object({
   message: z.string().describe('The latest user message to analyze.'),
   history: z.array(MessageSchema).describe('The history of the conversation so far.'),
+  languageCode: z.string().optional().describe('The BCP-47 language code of the user message.'),
 });
 export type HandleChatTurnInput = z.infer<typeof HandleChatTurnInputSchema>;
 
@@ -47,6 +47,7 @@ const HandleChatTurnOutputSchema = z.object({
   recommendations: z
     .array(z.string())
     .describe('List of coping mechanisms. Empty if isCritical.'),
+  languageCode: z.string().optional().describe('The BCP-47 language code of the user message.'),
 });
 export type HandleChatTurnOutput = z.infer<typeof HandleChatTurnOutputSchema>;
 
@@ -70,7 +71,7 @@ You are MentoraAI, an AI wellness companion. Always reply in warm, teen-friendly
 
 Protocol:  
 **Step 1 – Critical Scan**  
-If user message has keywords: 'kill myself', 'suicide', 'end my life', 'want to disappear', 'can't go on', 'no reason to live', 'hopeless' →  
+If the user message contains clear, unambiguous, and high-intent keywords of self-harm like: 'kill myself', 'suicide', 'end my life', 'want to die' →  
 Return: { isCritical: true, empatheticResponse: "", introductoryText: "", recommendations: [] }  
 
 **Step 2 – Empathetic Response + Coping**  
@@ -146,17 +147,18 @@ const handleChatTurnFlow = ai.defineFlow(
     const result = await retryWithExponentialBackoff(async () =>
       consolidatedPrompt(englishInput)
     );
-    const englishOutput = result.output!;
+    let englishOutput = result.output!;
+    englishOutput.languageCode = languageCode;
     console.log("--> ENGLISH OUTPUT:", JSON.stringify(englishOutput, null, 2));
 
-    // If English or critical → return directly
+    // If English or critical → return directly (languageCode will be passed through for safety net)
     if (languageCode === 'en' || !englishOutput || englishOutput.isCritical) {
       return englishOutput;
     }
 
     // 3. Translate back to user’s language
     let finalResponse: HandleChatTurnOutput = {
-      isCritical: englishOutput.isCritical,
+      ...englishOutput,
       empatheticResponse: '',
       introductoryText: '',
       recommendations: [],
@@ -189,7 +191,9 @@ const handleChatTurnFlow = ai.defineFlow(
       }
     } catch (err) {
       console.error("Translation error → fallback to English:", err);
-      finalResponse = englishOutput;
+      // If translation fails, return the untranslated English object.
+      // The languageCode is still present.
+      return englishOutput; 
     }
 
     console.log("--> FINAL OUTPUT:", JSON.stringify(finalResponse, null, 2));
