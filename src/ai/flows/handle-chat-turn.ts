@@ -151,6 +151,7 @@ const handleChatTurnFlow = ai.defineFlow(
       return englishOutput;
     }
 
+    // 3. Translate the response back to the user's language, one by one.
     let finalResponseObject = englishOutput;
     try {
       const translatedResponse: HandleChatTurnOutput = {
@@ -160,7 +161,6 @@ const handleChatTurnFlow = ai.defineFlow(
         recommendations: [],
       };
 
-      // 3. Translate the response back to the user's language, one by one.
       if (englishOutput.empatheticResponse) {
         const translatedEmpatheticResponse = await retryWithExponentialBackoff(async () =>
           translationPrompt({ targetLanguage: languageCode, text: englishOutput.empatheticResponse })
@@ -198,5 +198,3 @@ const handleChatTurnFlow = ai.defineFlow(
     return finalResponseObject;
   }
 );
-
-    
