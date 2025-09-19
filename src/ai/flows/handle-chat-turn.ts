@@ -144,13 +144,15 @@ const handleChatTurnFlow = ai.defineFlow(
     );
     const englishOutput = result.output!;
     
+    // Log the created English object
+    console.log("--> 1. ENGLISH OBJECT CREATED:", JSON.stringify(englishOutput, null, 2));
+
     // If the original language was English or response is critical, return directly
     if (languageCode === 'en' || !englishOutput || englishOutput.isCritical) {
       return englishOutput;
     }
 
-    console.log("--> 1. ENGLISH OBJECT CREATED:", JSON.stringify(englishOutput, null, 2));
-
+    let finalResponseObject = englishOutput;
     try {
       const translatedResponse: HandleChatTurnOutput = {
         isCritical: englishOutput.isCritical,
@@ -185,13 +187,15 @@ const handleChatTurnFlow = ai.defineFlow(
         translatedResponse.recommendations = translatedRecommendations;
       }
       
-      console.log("--> 2. TRANSLATION SUCCEEDED. FINAL OBJECT:", JSON.stringify(translatedResponse, null, 2));
-      return translatedResponse;
+      finalResponseObject = translatedResponse;
+      console.log("--> 2. TRANSLATION SUCCEEDED. FINAL OBJECT:", JSON.stringify(finalResponseObject, null, 2));
 
     } catch (error) {
       console.error("--> X. ERROR DURING TRANSLATION:", error);
       // As a fallback, send the English version so the user doesn't get an empty response
-      return englishOutput;
+      finalResponseObject = englishOutput;
     }
+
+    return finalResponseObject;
   }
 );
