@@ -19,15 +19,14 @@ import { BreathingExercise } from './coping/breathing-exercise';
 import { Journal } from './coping/journal';
 import { Puzzles } from './coping/puzzles';
 
-const choiceMap: Record<string, { icon: React.ElementType; label: string; action: string }> = {
-  "do a breathing exercise 🧘": { icon: Wind, label: 'Breathing Exercise', action: 'start_breathing' },
-  "try a simple puzzle 🧠": { icon: Puzzle, label: 'Creative Puzzles', action: 'start_puzzle' },
-  "play 'fruit frenzy' 🥑": { icon: Gamepad2, label: 'Fruit Frenzy', action: 'start_fruit_slicer' },
-  "write in a journal 📝": { icon: BrainCircuit, label: 'Anger Dump Journal', action: 'start_journaling' },
-  "or just talk 💬": { icon: MessageCircle, label: 'Just Talk', action: 'start_talk' },
-  "just talk 💬": { icon: MessageCircle, label: 'Just Talk', action: 'start_talk' },
+const choiceMap: Record<string, { icon: React.ElementType; label: string; action: string; translatedLabel?: string }> = {
+  "do a breathing exercise 🧘": { icon: Wind, label: 'Breathing Exercise', action: 'start_breathing', translatedLabel: 'శ్వాస వ్యాయామం చేయండి' },
+  "try a simple puzzle 🧠": { icon: Puzzle, label: 'Creative Puzzles', action: 'start_puzzle', translatedLabel: 'ఒక సాధారణ పజిల్ ప్రయత్నించండి' },
+  "play 'fruit frenzy' 🥑": { icon: Gamepad2, label: 'Fruit Frenzy', action: 'start_fruit_slicer', translatedLabel: "'ఫ్రూట్ ఫ్రెంజీ' ఆడండి" },
+  "write in a journal 📝": { icon: BrainCircuit, label: 'Anger Dump Journal', action: 'start_journaling', translatedLabel: 'ఒక పత్రికలో వ్రాయండి' },
+  "or just talk 💬": { icon: MessageCircle, label: 'Just Talk', action: 'start_talk', translatedLabel: 'లేదా మాట్లాడండి' },
+  "just talk 💬": { icon: MessageCircle, label: 'Just Talk', action: 'start_talk', translatedLabel: 'మాట్లాడండి' },
 };
-
 
 const activityMap: Record<string, React.ElementType> = {
   breathing: BreathingExercise,
@@ -174,10 +173,12 @@ export function ChatInterface() {
               }
               const choice = choiceMap[choiceKey];
               const Icon = choice.icon;
+              const buttonLabel = (lastLanguageCode !== 'en' && choice.translatedLabel) ? choice.translatedLabel : rec.replace(/ \p{Emoji}/gu, '');
+              
               return (
                 <Button key={index} variant="outline" onClick={() => handleChoiceClick(choice.action, choice.label)} className="bg-background/80 text-left h-auto whitespace-normal">
                   <Icon className="mr-2 h-4 w-4" />
-                  {rec.replace(/ \p{Emoji}/gu, '')}
+                  {buttonLabel}
                 </Button>
               );
             })}

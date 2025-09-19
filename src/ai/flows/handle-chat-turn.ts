@@ -7,7 +7,7 @@
  * 1. Detects the user's language and translates their message to English for analysis.
  * 2. Analyzes the English message for critical distress signals.
  * 3. If not critical, generates an empathetic response and coping recommendations in English.
- * 4. Translates the English response object back into the user's original language.
+ * 4. Translates the empathetic response and intro text back into the user's original language, but keeps recommendations in English.
  */
 
 import { ai } from '@/ai/genkit';
@@ -43,7 +43,7 @@ const HandleChatTurnOutputSchema = z.object({
     ),
   recommendations: z
     .array(z.string())
-    .describe('List of coping mechanisms. Empty if isCritical.'),
+    .describe('List of coping mechanisms (always in English). Empty if isCritical.'),
   languageCode: z.string().optional().describe('The BCP-47 language code of the user message.'),
 });
 export type HandleChatTurnOutput = z.infer<typeof HandleChatTurnOutputSchema>;
@@ -73,6 +73,7 @@ You will be given the conversation history and the latest user message. Use the 
 STRICT RULES:
 1. Keep tone empathetic, simple, and supportive.
 2. Responses should be short (2–3 sentences).
+3. The 'recommendations' array MUST contain the EXACT strings provided below. Do not modify them.
 
 Protocol:
 **Step 1 – Critical Scan**
@@ -169,25 +170,14 @@ const handleChatTurnFlow = ai.defineFlow(
 
     // Handle cases where the main prompt fails.
     if (!englishOutput) {
-      // Create a fallback response in English.
       const fallbackResponse = {
         isCritical: false,
         empatheticResponse: 'I am sorry, but something went wrong. Could you please say that again?',
         introductoryText: '',
         recommendations: [],
       };
-
-      // If the user's language is not English, try to translate the fallback message.
-      if (languageCode !== 'en') {
-        try {
-          const translatedFallback = await retryWithExponentialBackoff(() =>
-            translationPrompt({ targetLanguage: languageCode, text: fallbackResponse.empatheticResponse })
-          );
-          fallbackResponse.empatheticResponse = translatedFallback.output!;
-        } catch (err) {
-          console.error("Translation error on fallback -> returning English:", err);
-        }
-      }
+      // We don't translate the fallback message because it's a developer-facing error.
+      // The user can try again.
       return { ...fallbackResponse, languageCode };
     }
 
@@ -201,14 +191,15 @@ const handleChatTurnFlow = ai.defineFlow(
       return { ...englishOutput, languageCode };
     }
 
-    // 3. MANDATORY TRANSLATION STEP: Translate the English response back to the user’s original language.
+    // 3. MANDATORY TRANSLATION STEP: Translate the response fields back to the user’s original language.
+    // CRUCIAL: Do NOT translate 'recommendations' as the frontend uses them as keys.
     const finalResponse: HandleChatTurnOutput = {
       ...englishOutput,
       languageCode: languageCode,
     };
 
     try {
-      // Create an array of promises for all translation tasks to run in parallel.
+      // Create an array of promises for translation tasks to run in parallel.
       const translationPromises = [];
 
       if (englishOutput.empatheticResponse) {
@@ -226,17 +217,7 @@ const handleChatTurnFlow = ai.defineFlow(
           ).then(res => finalResponse.introductoryText = res.output!)
         );
       }
-
-      if (englishOutput.recommendations?.length > 0) {
-        translationPromises.push(
-          Promise.all(englishOutput.recommendations.map(rec =>
-            retryWithExponentialBackoff(() =>
-              translationPrompt({ targetLanguage: languageCode, text: rec })
-            ).then(res => res.output!)
-          )).then(translatedRecs => finalResponse.recommendations = translatedRecs)
-        );
-      }
-
+      
       // Wait for all translations to complete.
       await Promise.all(translationPromises);
 
