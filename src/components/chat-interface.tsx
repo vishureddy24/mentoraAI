@@ -24,7 +24,6 @@ const choiceMap: Record<string, { icon: React.ElementType; label: string; action
   "try a simple puzzle 🧠": { icon: Puzzle, label: 'Creative Puzzles', action: 'start_puzzle', translatedLabel: 'ఒక సాధారణ పజిల్ ప్రయత్నించండి' },
   "play 'fruit frenzy' 🥑": { icon: Gamepad2, label: 'Fruit Frenzy', action: 'start_fruit_slicer', translatedLabel: "'ఫ్రూట్ ఫ్రెంజీ' ఆడండి" },
   "write in a journal 📝": { icon: BrainCircuit, label: 'Anger Dump Journal', action: 'start_journaling', translatedLabel: 'ఒక పత్రికలో వ్రాయండి' },
-  "or just talk 💬": { icon: MessageCircle, label: 'Just Talk', action: 'start_talk', translatedLabel: 'లేదా మాట్లాడండి' },
   "just talk 💬": { icon: MessageCircle, label: 'Just Talk', action: 'start_talk', translatedLabel: 'మాట్లాడండి' },
 };
 

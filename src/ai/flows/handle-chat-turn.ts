@@ -176,8 +176,6 @@ const handleChatTurnFlow = ai.defineFlow(
         introductoryText: '',
         recommendations: [],
       };
-      // We don't translate the fallback message because it's a developer-facing error.
-      // The user can try again.
       return { ...fallbackResponse, languageCode };
     }
 
@@ -199,7 +197,6 @@ const handleChatTurnFlow = ai.defineFlow(
     };
 
     try {
-      // Create an array of promises for translation tasks to run in parallel.
       const translationPromises = [];
 
       if (englishOutput.empatheticResponse) {
@@ -218,13 +215,10 @@ const handleChatTurnFlow = ai.defineFlow(
         );
       }
       
-      // Wait for all translations to complete.
       await Promise.all(translationPromises);
 
     } catch (err) {
       console.error("Translation error -> falling back to English response:", err);
-      // In case of a translation error, return the untranslated English object with the correct language code.
-      // This is a safe fallback to prevent the app from crashing and still provide a response.
       return { ...englishOutput, languageCode };
     }
 
