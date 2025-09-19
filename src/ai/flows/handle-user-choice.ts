@@ -12,7 +12,7 @@ import { retryWithExponentialBackoff } from '../utils';
 // Input now accepts a languageCode to determine the response language.
 const HandleUserChoiceInputSchema = z.object({
   action: z.string().describe("The action identifier for the user's choice (e.g., 'start_puzzle')."),
-  languageCode: z.string().optional().default('en').describe("The ISO 639-1 code for the user's language (e.g., 'en', 'te')."),
+  languageCode: z.string().optional().default('en').describe("The BCP-47 code for the user's language (e.g., 'en', 'te')."),
 });
 export type HandleUserChoiceInput = z.infer<typeof HandleUserChoiceInputSchema>;
 
@@ -27,7 +27,7 @@ const translationPrompt = ai.definePrompt({
     name: 'choiceTranslationPrompt',
     input: { schema: z.object({ targetLanguage: z.string(), text: z.string() }) },
     output: { schema: z.string() },
-    prompt: `Translate the following English text to the language with this ISO 639-1 code '{{targetLanguage}}': "{{text}}"`,
+    prompt: `Translate the following English text to the language with this BCP-47 code '{{targetLanguage}}': "{{text}}"`,
 });
 
 
@@ -79,7 +79,7 @@ const handleUserChoiceFlow = ai.defineFlow(
     }
 
     // This is the crucial final step: translate the response if the user's language is not English.
-    if (input.languageCode !== 'en' && result.response) {
+    if (input.languageCode && input.languageCode !== 'en' && result.response) {
         console.log(`--> Translating response from English to '${input.languageCode}'...`);
         try {
             const translatedResult = await retryWithExponentialBackoff(async () =>
