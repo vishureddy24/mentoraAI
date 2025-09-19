@@ -3,11 +3,11 @@
 /**
  * @fileOverview This file defines a consolidated Genkit flow for handling a single turn in the chat.
  *
- * This flow performs three main tasks in a single call to the AI model:
+ * This flow performs three main tasks:
  * 1. Detects language and translates to English (for model analysis).
  * 2. Analyzes the user's message for critical distress signals.
- * 3. If not critical, generates empathetic response + coping recommendations.
- * 4. Translates the response back to the user's original language (supports Indian languages).
+ * 3. If not critical, generates an empathetic response + coping recommendations in English.
+ * 4. Translates the English response back to the user's original language.
  *
  * This ensures multilingual support while keeping within free-tier API limits.
  */
@@ -60,43 +60,49 @@ export async function handleChatTurn(
 
 // ---------------- PROMPTS ----------------
 
-// Consolidated prompt: English-only analysis
+// Consolidated prompt for English analysis
 const consolidatedPrompt = ai.definePrompt({
   name: 'handleChatTurnPrompt',
   input: { schema: HandleChatTurnInputSchema },
   output: { schema: Omit<HandleChatTurnOutput, ['languageCode']> },
   prompt: `
-You are MentoraAI, an AI wellness companion. Always reply in warm, teen-friendly, empathetic language.  
+You are MentoraAI, an AI wellness companion. Always reply in warm, teen-friendly, empathetic language.
 
-Protocol:  
-**Step 1 – Critical Scan**  
-If the user message contains clear, unambiguous, and high-intent keywords of self-harm like: 'kill myself', 'suicide', 'end my life', 'want to die' →  
-Return: { isCritical: true, empatheticResponse: "", introductoryText: "", recommendations: [] }  
+STRICT RULES:
+1. Detect the language of the user’s input.
+2. ALWAYS reply in the SAME language as the user’s input.
+3. Keep tone empathetic, simple, and supportive.
+4. Responses should be short (2–3 sentences).
 
-**Step 2 – Empathetic Response + Coping**  
-If not critical:  
-- Respond in caring tone. Validate feelings. Emojis allowed.  
-- Classify emotion: Sad / Angry / Neutral / Happy.  
-- Intro text depends on emotion:  
-  - Sad → "I'm here with you. If you feel up to it, would you like to..."  
-  - Angry → "You don't have to hold that in. Would you like to..."  
-  - Other → "I'm here for you. Perhaps one of these might help?"  
-- Coping recommendations:  
-  - Sad → ["Try a simple creative puzzle 🧠", "Do a guided breathing exercise 🧘", "Or just talk 💬"]  
-  - Angry → ["Play 'Fruit Frenzy' 🥑", "Try a puzzle 🧠", "Write in an anger journal 📝", "Or just talk 💬"]  
-  - Other → ["Just talk 💬"]  
+Protocol:
+**Step 1 – Critical Scan**
+If the user message contains clear, unambiguous, and high-intent keywords of self-harm like: 'kill myself', 'suicide', 'end my life', 'want to die' →
+Return: { isCritical: true, empatheticResponse: "", introductoryText: "", recommendations: [] }
 
-Conversation History:  
-{{#each history}}  
-  **{{role}}**: {{content}}  
-{{/each}}  
+**Step 2 – Empathetic Response + Coping**
+If not critical:
+- Respond in caring tone. Validate feelings. Emojis allowed.
+- Classify emotion: Sad / Angry / Neutral / Happy.
+- Intro text depends on emotion:
+  - Sad → "I'm here with you. If you feel up to it, would you like to..."
+  - Angry → "You don't have to hold that in. Would you like to..."
+  - Other → "I'm here for you. Perhaps one of these might help?"
+- Coping recommendations:
+  - Sad → ["Try a simple creative puzzle 🧠", "Do a guided breathing exercise 🧘", "Or just talk 💬"]
+  - Angry → ["Play 'Fruit Frenzy' 🥑", "Try a puzzle 🧠", "Write in an anger journal 📝", "Or just talk 💬"]
+  - Other → ["Just talk 💬"]
 
-Analyze and respond:  
+Conversation History:
+{{#each history}}
+  **{{role}}**: {{content}}
+{{/each}}
+
+Analyze and respond:
 User Message: {{{message}}}
 `,
 });
 
-// Language detection + English translation
+// Language detection + English translation prompt
 const languageDetectionPrompt = ai.definePrompt({
   name: 'languageDetectionPrompt',
   input: { schema: z.string() },
@@ -107,16 +113,16 @@ const languageDetectionPrompt = ai.definePrompt({
     }),
   },
   prompt: `
-Detect the language of the following text.  
-If it is in Hindi, Telugu, Tamil, Kannada, Malayalam, Bengali, Gujarati, Punjabi, Marathi, or English, return the correct BCP-47 code.  
+Detect the language of the following text.
+If it is in Hindi, Telugu, Tamil, Kannada, Malayalam, Bengali, Gujarati, Punjabi, Marathi, or English, return the correct BCP-47 code.
 
-Also translate it to English.  
+Also translate it to English.
 
 User message: {{{input}}}
 `,
 });
 
-// Translation (English → Target Language)
+// Translation (English → Target Language) prompt
 const translationPrompt = ai.definePrompt({
   name: 'translationPrompt',
   input: { schema: z.object({ targetLanguage: z.string(), text: z.string() }) },
@@ -142,23 +148,19 @@ const handleChatTurnFlow = ai.defineFlow(
     const { languageCode, translatedMessage } = langDetectionResult.output!;
     const englishInput = { ...input, message: translatedMessage };
 
-    // 2. Process English text
+    // 2. Process English text to get response object
     const result = await retryWithExponentialBackoff(async () =>
       consolidatedPrompt(englishInput)
     );
     let englishOutput = result.output!;
+    console.log("--> ENGLISH OUTPUT:", JSON.stringify(englishOutput, null, 2));
 
-    // Pass language code through for safety net
-    const outputWithLangCode = { ...englishOutput, languageCode };
-    console.log("--> ENGLISH OUTPUT:", JSON.stringify(outputWithLangCode, null, 2));
-
-
-    // If English or critical → return directly
+    // If English or critical, return directly, but include languageCode
     if (languageCode === 'en' || !englishOutput || englishOutput.isCritical) {
-      return outputWithLangCode;
+      return { ...englishOutput, languageCode };
     }
 
-    // 3. Translate back to user’s language
+    // 3. Translate the English response back to the user’s language
     let finalResponse: HandleChatTurnOutput = {
       ...englishOutput,
       languageCode: languageCode,
@@ -196,7 +198,7 @@ const handleChatTurnFlow = ai.defineFlow(
     } catch (err) {
       console.error("Translation error → fallback to English:", err);
       // If translation fails, return the untranslated English object with the language code.
-      return outputWithLangCode;
+      return { ...englishOutput, languageCode };
     }
 
     console.log("--> FINAL OUTPUT:", JSON.stringify(finalResponse, null, 2));
