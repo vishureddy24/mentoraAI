@@ -45,7 +45,7 @@ const translationPrompt = ai.definePrompt({
     name: 'safetyNetTranslationPrompt',
     input: { schema: z.object({ targetLanguage: z.string(), text: z.string() }) },
     output: { schema: z.string() },
-    prompt: `Translate the following safety message to {{targetLanguage}}. Keep the formatting, phone numbers, and URLs exactly the same.
+    prompt: `Translate the following safety message to the language with this BCP-47 code: {{targetLanguage}}. Keep the formatting, phone numbers, and URLs exactly the same.
 
 Text: {{{text}}}`,
 });

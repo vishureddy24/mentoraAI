@@ -111,13 +111,24 @@ const languageDetectionPrompt = ai.definePrompt({
   input: { schema: z.string() },
   output: {
     schema: z.object({
-      languageCode: z.string().describe("BCP-47 language code (e.g., 'en', 'hi', 'te', 'ta', 'bn'). Defaults to 'en' if unsure."),
+      languageCode: z.string().describe("BCP-47 language code. Supported codes: 'en', 'hi', 'te', 'ta', 'kn', 'ml', 'bn', 'gu', 'pa', 'mr'. Default to 'en' if unsure."),
       translatedMessage: z.string().describe("Message translated into English."),
     }),
   },
   prompt: `
-Detect the language of the following text.
-If it is in Hindi, Telugu, Tamil, Kannada, Malayalam, Bengali, Gujarati, Punjabi, Marathi, or English, return the correct BCP-47 code. If you cannot determine the language, default to 'en'.
+Detect the language of the following text. The supported languages and their BCP-47 codes are:
+- English (en)
+- Hindi (hi)
+- Telugu (te)
+- Tamil (ta)
+- Kannada (kn)
+- Malayalam (ml)
+- Bengali (bn)
+- Gujarati (gu)
+- Punjabi (pa)
+- Marathi (mr)
+
+If you can determine the language is one of the supported languages, return its BCP-47 code. If you cannot determine the language or it is not in the supported list, default to 'en'.
 
 Also translate the text to English.
 
@@ -217,5 +228,3 @@ const handleChatTurnFlow = ai.defineFlow(
     return finalResponse;
   }
 );
-
-    
