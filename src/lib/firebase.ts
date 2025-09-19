@@ -3,13 +3,12 @@ import { getAuth, browserLocalPersistence, setPersistence } from 'firebase/auth'
 
 // Your web app's Firebase configuration
 const firebaseConfig = {
-  apiKey: "AIzaSyDExU8FOTwTBsuu9uuJaFTwwce2-dMbejM",
+  apiKey: "AIzaSyB949PJTBxCdiZIfvCkplfAZI2WWfix-MU",
   authDomain: "teenwellnessapp.firebaseapp.com",
   projectId: "teenwellnessapp",
   storageBucket: "teenwellnessapp.appspot.com",
   messagingSenderId: "458468952403",
-  appId: "1:458468952403:web:21d28ce66913e30ec879a6",
-  measurementId: "G-65DBWQDJ8S"
+  appId: "1:458468952403:web:21d28ce66913e30ec879a6"
 };
 
 // Initialize Firebase
