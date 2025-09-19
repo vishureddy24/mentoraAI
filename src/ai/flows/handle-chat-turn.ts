@@ -164,8 +164,19 @@ const handleChatTurnFlow = ai.defineFlow(
     let englishOutput = result.output!;
     console.log("--> ENGLISH OUTPUT:", JSON.stringify(englishOutput, null, 2));
 
-    // If English or critical, return directly, but include languageCode
-    if (languageCode === 'en' || !englishOutput || englishOutput.isCritical) {
+    // If there's no valid output, return a default safe response
+    if (!englishOutput) {
+        return {
+            isCritical: false,
+            empatheticResponse: 'Sorry, something went wrong. Could you please rephrase?',
+            introductoryText: '',
+            recommendations: [],
+            languageCode: 'en',
+        };
+    }
+
+    // If English or a critical message, return directly, but include the language code
+    if (languageCode === 'en' || englishOutput.isCritical) {
       return { ...englishOutput, languageCode };
     }
 
