@@ -154,88 +154,95 @@ const handleChatTurnFlow = ai.defineFlow(
     outputSchema: HandleChatTurnOutputSchema,
   },
   async (input) => {
-    // 1. Detect language + translate to English
+    // 1. Detect language and translate user message to English.
     const langDetectionResult = await retryWithExponentialBackoff(async () =>
       languageDetectionPrompt(input.message)
     );
     const { languageCode = 'en', translatedMessage } = langDetectionResult.output!;
     const englishInput = { ...input, message: translatedMessage };
 
-    // 2. Process English text to get the base response object
+    // 2. Process the English message to generate a response.
     const result = await retryWithExponentialBackoff(async () =>
       consolidatedPrompt(englishInput)
     );
     const englishOutput = result.output;
 
-    // If there's no valid output from the main prompt, return a default safe response
+    // Handle cases where the main prompt fails.
     if (!englishOutput) {
         const fallbackResponse = {
             isCritical: false,
-            empatheticResponse: 'Sorry, something went wrong. Could you please rephrase?',
+            empatheticResponse: 'I am sorry, but something went wrong. Could you please say that again?',
             introductoryText: '',
             recommendations: [],
             languageCode: 'en',
         };
-        // If the original language was not English, try to translate the fallback message
+        // Try to translate the fallback message, but don't fail if it doesn't work.
         if (languageCode !== 'en') {
             try {
                 const translatedFallback = await retryWithExponentialBackoff(() =>
                     translationPrompt({ targetLanguage: languageCode, text: fallbackResponse.empatheticResponse })
                 );
                 fallbackResponse.empatheticResponse = translatedFallback.output!;
-                fallbackResponse.languageCode = languageCode;
             } catch (err) {
                 console.error("Translation error on fallback -> returning English:", err);
             }
         }
-        return fallbackResponse;
+        return { ...fallbackResponse, languageCode };
     }
 
-    // If the message is critical, return immediately (safetyNetProtocol will handle translation)
+    // If the message is critical, return immediately. The safetyNetProtocol handles its own translation.
     if (englishOutput.isCritical) {
       return { ...englishOutput, languageCode };
     }
 
-    // If the user's language is English, return the English response directly
+    // If the user's language is English, we can return the response directly.
     if (languageCode === 'en') {
       return { ...englishOutput, languageCode };
     }
 
-    // 3. Translate the English response back to the user’s language
+    // 3. Translate the English response back to the user’s original language.
     const finalResponse: HandleChatTurnOutput = {
       ...englishOutput,
       languageCode: languageCode,
     };
 
     try {
+      // Create an array of promises for all translation tasks.
+      const translationPromises = [];
+      
       if (englishOutput.empatheticResponse) {
-        const translationResult = await retryWithExponentialBackoff(() => 
-          translationPrompt({ targetLanguage: languageCode, text: englishOutput.empatheticResponse })
-        );
-        finalResponse.empatheticResponse = translationResult.output!;
+          translationPromises.push(
+              retryWithExponentialBackoff(() => 
+                  translationPrompt({ targetLanguage: languageCode, text: englishOutput.empatheticResponse })
+              ).then(res => finalResponse.empatheticResponse = res.output!)
+          );
       }
 
       if (englishOutput.introductoryText) {
-        const translationResult = await retryWithExponentialBackoff(() => 
-          translationPrompt({ targetLanguage: languageCode, text: englishOutput.introductoryText })
+          translationPromises.push(
+              retryWithExponentialBackoff(() => 
+                  translationPrompt({ targetLanguage: languageCode, text: englishOutput.introductoryText })
+              ).then(res => finalResponse.introductoryText = res.output!)
+          );
+      }
+      
+      if (englishOutput.recommendations?.length > 0) {
+        translationPromises.push(
+          Promise.all(englishOutput.recommendations.map(rec =>
+            retryWithExponentialBackoff(() => 
+              translationPrompt({ targetLanguage: languageCode, text: rec })
+            ).then(res => res.output!)
+          )).then(translatedRecs => finalResponse.recommendations = translatedRecs)
         );
-        finalResponse.introductoryText = translationResult.output!;
       }
 
-      if (englishOutput.recommendations?.length) {
-        const translatedRecs: string[] = [];
-        for (const rec of englishOutput.recommendations) {
-           const translationResult = await retryWithExponentialBackoff(() => 
-            translationPrompt({ targetLanguage: languageCode, text: rec })
-          );
-          translatedRecs.push(translationResult.output!);
-        }
-        finalResponse.recommendations = translatedRecs;
-      }
+      // Wait for all translations to complete.
+      await Promise.all(translationPromises);
+
     } catch (err) {
-      console.error("Translation error -> fallback to English:", err);
-      // If translation fails, return the untranslated English object but with the language code.
-      // This is a safe fallback to prevent the app from crashing.
+      console.error("Translation error -> falling back to English response:", err);
+      // In case of a translation error, return the untranslated English object with the correct language code.
+      // This is a safe fallback to prevent the app from crashing and still provide a response.
       return { ...englishOutput, languageCode };
     }
     
