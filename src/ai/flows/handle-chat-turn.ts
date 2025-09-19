@@ -3,13 +3,11 @@
 /**
  * @fileOverview This file defines a consolidated Genkit flow for handling a single turn in the chat.
  *
- * This flow performs three main tasks:
- * 1. Detects language and translates to English (for model analysis).
- * 2. Analyzes the user's message for critical distress signals.
- * 3. If not critical, generates an empathetic response + coping recommendations in English.
- * 4. Translates the English response back to the user's original language.
- *
- * This ensures multilingual support while keeping within free-tier API limits.
+ * This flow performs these main tasks:
+ * 1. Detects the user's language and translates their message to English for analysis.
+ * 2. Analyzes the English message for critical distress signals.
+ * 3. If not critical, generates an empathetic response and coping recommendations in English.
+ * 4. Translates the English response object back into the user's original language.
  */
 
 import { ai } from '@/ai/genkit';
@@ -64,7 +62,6 @@ export async function handleChatTurn(
 
 // ---------------- PROMPTS ----------------
 
-// Consolidated prompt for English analysis
 const consolidatedPrompt = ai.definePrompt({
   name: 'handleChatTurnPrompt',
   input: { schema: HandleChatTurnInputSchema },
@@ -74,10 +71,8 @@ You are MentoraAI, an AI wellness companion. Always reply in warm, teen-friendly
 You will be given the conversation history and the latest user message. Use the history to understand the context.
 
 STRICT RULES:
-1. Detect the language of the user’s input.
-2. ALWAYS reply in the SAME language as the user’s input.
-3. Keep tone empathetic, simple, and supportive.
-4. Responses should be short (2–3 sentences).
+1. Keep tone empathetic, simple, and supportive.
+2. Responses should be short (2–3 sentences).
 
 Protocol:
 **Step 1 – Critical Scan**
@@ -85,20 +80,20 @@ If the user message contains clear, unambiguous, and high-intent keywords of sel
 Return: { isCritical: true, empatheticResponse: "", introductoryText: "", recommendations: [] }
 
 **Step 2 – Greeting Check**
-If the conversation has just started and the user message is a simple greeting like "Hi", "Hello", "Hey", etc. and NOT expressing any emotion →
+If the conversation has just started and the user message is a simple greeting like "Hi", "Hello", "Hey", "Namaste", "Namaskaram", etc. and NOT expressing any emotion →
 Return: { isCritical: false, empatheticResponse: "Hi there! I'm MentoraAI, your personal companion. How are you feeling today?", introductoryText: "", recommendations: [] }
 
 **Step 3 – Empathetic Response + Coping**
 If not critical and not a simple greeting:
-- Respond in caring tone. Validate feelings. Emojis allowed.
+- Respond in a caring tone. Validate their feelings. Emojis are allowed.
 - Classify emotion: Sad / Angry / Neutral / Happy.
 - Intro text depends on emotion:
   - Sad → "I'm here with you. If you feel up to it, would you like to..."
-  - Angry → "You don't have to hold that in. Would you like to..."
+  - Angry → "It’s okay to feel angry. When you're ready, would you like to..."
   - Other → "I'm here for you. Perhaps one of these might help?"
 - Coping recommendations (use these EXACT strings):
   - Sad → ["try a simple puzzle 🧠", "do a breathing exercise 🧘", "or just talk 💬"]
-  - Angry → ["play 'fruit frenzy' 🥑", "try a simple puzzle 🧠", "write in a journal 📝", "or just talk 💬"]
+  - Angry → ["play 'fruit frenzy' 🥑", "write in a journal 📝", "or just talk 💬"]
   - Other → ["just talk 💬"]
 
 Conversation History:
@@ -111,32 +106,30 @@ User Message: {{{message}}}
 `,
 });
 
-// Language detection + English translation prompt
 const languageDetectionPrompt = ai.definePrompt({
   name: 'languageDetectionPrompt',
   input: { schema: z.string() },
   output: {
     schema: z.object({
-      languageCode: z.string().describe("BCP-47 language code (e.g., 'en', 'hi', 'te', 'ta', 'bn')."),
+      languageCode: z.string().describe("BCP-47 language code (e.g., 'en', 'hi', 'te', 'ta', 'bn'). Defaults to 'en' if unsure."),
       translatedMessage: z.string().describe("Message translated into English."),
     }),
   },
   prompt: `
 Detect the language of the following text.
-If it is in Hindi, Telugu, Tamil, Kannada, Malayalam, Bengali, Gujarati, Punjabi, Marathi, or English, return the correct BCP-47 code.
+If it is in Hindi, Telugu, Tamil, Kannada, Malayalam, Bengali, Gujarati, Punjabi, Marathi, or English, return the correct BCP-47 code. If you cannot determine the language, default to 'en'.
 
-Also translate it to English.
+Also translate the text to English.
 
 User message: {{{input}}}
 `,
 });
 
-// Translation (English → Target Language) prompt
 const translationPrompt = ai.definePrompt({
   name: 'translationPrompt',
   input: { schema: z.object({ targetLanguage: z.string(), text: z.string() }) },
   output: { schema: z.string() },
-  prompt: `Translate the following English text to the language with this ISO 639-1 code: {{targetLanguage}}.
+  prompt: `Translate the following English text to the language with this BCP-47 code: {{targetLanguage}}.
 
 Text: {{{text}}}`,
 });
@@ -154,15 +147,14 @@ const handleChatTurnFlow = ai.defineFlow(
     const langDetectionResult = await retryWithExponentialBackoff(async () =>
       languageDetectionPrompt(input.message)
     );
-    const { languageCode, translatedMessage } = langDetectionResult.output!;
+    const { languageCode = 'en', translatedMessage } = langDetectionResult.output!;
     const englishInput = { ...input, message: translatedMessage };
 
-    // 2. Process English text to get response object
+    // 2. Process English text to get the base response object
     const result = await retryWithExponentialBackoff(async () =>
       consolidatedPrompt(englishInput)
     );
-    let englishOutput = result.output!;
-    console.log("--> ENGLISH OUTPUT:", JSON.stringify(englishOutput, null, 2));
+    const englishOutput = result.output;
 
     // If there's no valid output, return a default safe response
     if (!englishOutput) {
@@ -175,19 +167,23 @@ const handleChatTurnFlow = ai.defineFlow(
         };
     }
 
-    // If English or a critical message, return directly, but include the language code
-    if (languageCode === 'en' || englishOutput.isCritical) {
+    // If the message is critical, return immediately without translation
+    if (englishOutput.isCritical) {
+      return { ...englishOutput, languageCode };
+    }
+
+    // If the user's language is English, return the English response directly
+    if (languageCode === 'en') {
       return { ...englishOutput, languageCode };
     }
 
     // 3. Translate the English response back to the user’s language
-    let finalResponse: HandleChatTurnOutput = {
+    const finalResponse: HandleChatTurnOutput = {
       ...englishOutput,
       languageCode: languageCode,
     };
 
     try {
-      // Use sequential translation for better reliability
       if (englishOutput.empatheticResponse) {
         const translationResult = await retryWithExponentialBackoff(() => 
           translationPrompt({ targetLanguage: languageCode, text: englishOutput.empatheticResponse })
@@ -213,12 +209,11 @@ const handleChatTurnFlow = ai.defineFlow(
         finalResponse.recommendations = translatedRecs;
       }
     } catch (err) {
-      console.error("Translation error → fallback to English:", err);
-      // If translation fails, return the untranslated English object with the language code.
+      console.error("Translation error -> fallback to English:", err);
+      // If translation fails, return the untranslated English object but with the language code.
       return { ...englishOutput, languageCode };
     }
-
-    console.log("--> FINAL OUTPUT:", JSON.stringify(finalResponse, null, 2));
+    
     return finalResponse;
   }
 );
