@@ -144,7 +144,6 @@ const handleChatTurnFlow = ai.defineFlow(
     );
     const englishOutput = result.output!;
     
-    // Log the created English object
     console.log("--> 1. ENGLISH OBJECT CREATED:", JSON.stringify(englishOutput, null, 2));
 
     // If the original language was English or response is critical, return directly
