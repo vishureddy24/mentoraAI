@@ -20,13 +20,12 @@ import { Journal } from './coping/journal';
 import { Puzzles } from './coping/puzzles';
 
 const choiceMap: Record<string, { icon: React.ElementType; label: string; action: string }> = {
-  "do a short, guided breathing exercise to find some calm? 🧘": { icon: Wind, label: 'Breathing Exercise', action: 'start_breathing' },
-  "try a simple creative puzzle to distract your mind? 🧠": { icon: Puzzle, label: 'Creative Puzzles', action: 'start_puzzle' },
-  "play 'fruit frenzy' to slice away the stress? 🥑": { icon: Gamepad2, label: 'Fruit Frenzy', action: 'start_fruit_slicer' },
-  "write it all out in a private 'anger journal'? 📝": { icon: BrainCircuit, label: 'Anger Dump Journal', action: 'start_journaling' },
-  "or would you prefer to just talk about what's on your mind? 💬": { icon: MessageCircle, label: 'Just Talk', action: 'start_talk' },
-  "or just tell me what happened? 💬": { icon: MessageCircle, label: 'Just Talk', action: 'start_talk' },
-  "just talk": { icon: MessageCircle, label: 'Just Talk', action: 'start_talk' },
+  "do a breathing exercise 🧘": { icon: Wind, label: 'Breathing Exercise', action: 'start_breathing' },
+  "try a simple puzzle 🧠": { icon: Puzzle, label: 'Creative Puzzles', action: 'start_puzzle' },
+  "play 'fruit frenzy' 🥑": { icon: Gamepad2, label: 'Fruit Frenzy', action: 'start_fruit_slicer' },
+  "write in a journal 📝": { icon: BrainCircuit, label: 'Anger Dump Journal', action: 'start_journaling' },
+  "or just talk 💬": { icon: MessageCircle, label: 'Just Talk', action: 'start_talk' },
+  "just talk 💬": { icon: MessageCircle, label: 'Just Talk', action: 'start_talk' },
 };
 
 
@@ -168,7 +167,7 @@ export function ChatInterface() {
         const choices = (
           <div className="flex flex-wrap gap-2">
             {result.recommendations.map((rec, index) => {
-              const choiceKey = Object.keys(choiceMap).find(key => rec.toLowerCase().startsWith(key.substring(0, 20)));
+              const choiceKey = Object.keys(choiceMap).find(key => rec.toLowerCase().includes(key.substring(0, key.length - 2).toLowerCase()));
               if (!choiceKey) {
                 console.warn(`No choice mapping found for recommendation: "${rec}"`);
                 return null;

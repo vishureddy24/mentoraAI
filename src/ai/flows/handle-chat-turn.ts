@@ -91,9 +91,9 @@ If not critical:
   - Sad → "I'm here with you. If you feel up to it, would you like to..."
   - Angry → "You don't have to hold that in. Would you like to..."
   - Other → "I'm here for you. Perhaps one of these might help?"
-- Coping recommendations:
-  - Sad → ["Try a simple creative puzzle 🧠", "Do a guided breathing exercise 🧘", "Or just talk 💬"]
-  - Angry → ["Play 'Fruit Frenzy' 🥑", "Try a puzzle 🧠", "Write in an anger journal 📝", "Or just talk 💬"]
+- Coping recommendations (use these EXACT strings):
+  - Sad → ["Try a simple puzzle 🧠", "Do a breathing exercise 🧘", "Or just talk 💬"]
+  - Angry → ["Play 'Fruit Frenzy' 🥑", "Try a puzzle 🧠", "Write in a journal 📝", "Or just talk 💬"]
   - Other → ["Just talk 💬"]
 
 Conversation History:
