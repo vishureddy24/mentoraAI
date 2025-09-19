@@ -169,25 +169,26 @@ const handleChatTurnFlow = ai.defineFlow(
 
     // Handle cases where the main prompt fails.
     if (!englishOutput) {
-        const fallbackResponse = {
-            isCritical: false,
-            empatheticResponse: 'I am sorry, but something went wrong. Could you please say that again?',
-            introductoryText: '',
-            recommendations: [],
-            languageCode: 'en',
-        };
-        // Try to translate the fallback message, but don't fail if it doesn't work.
-        if (languageCode !== 'en') {
-            try {
-                const translatedFallback = await retryWithExponentialBackoff(() =>
-                    translationPrompt({ targetLanguage: languageCode, text: fallbackResponse.empatheticResponse })
-                );
-                fallbackResponse.empatheticResponse = translatedFallback.output!;
-            } catch (err) {
-                console.error("Translation error on fallback -> returning English:", err);
-            }
+      // Create a fallback response in English.
+      const fallbackResponse = {
+        isCritical: false,
+        empatheticResponse: 'I am sorry, but something went wrong. Could you please say that again?',
+        introductoryText: '',
+        recommendations: [],
+      };
+
+      // If the user's language is not English, try to translate the fallback message.
+      if (languageCode !== 'en') {
+        try {
+          const translatedFallback = await retryWithExponentialBackoff(() =>
+            translationPrompt({ targetLanguage: languageCode, text: fallbackResponse.empatheticResponse })
+          );
+          fallbackResponse.empatheticResponse = translatedFallback.output!;
+        } catch (err) {
+          console.error("Translation error on fallback -> returning English:", err);
         }
-        return { ...fallbackResponse, languageCode };
+      }
+      return { ...fallbackResponse, languageCode };
     }
 
     // If the message is critical, return immediately. The safetyNetProtocol handles its own translation.
@@ -200,36 +201,36 @@ const handleChatTurnFlow = ai.defineFlow(
       return { ...englishOutput, languageCode };
     }
 
-    // 3. Translate the English response back to the user’s original language.
+    // 3. MANDATORY TRANSLATION STEP: Translate the English response back to the user’s original language.
     const finalResponse: HandleChatTurnOutput = {
       ...englishOutput,
       languageCode: languageCode,
     };
 
     try {
-      // Create an array of promises for all translation tasks.
+      // Create an array of promises for all translation tasks to run in parallel.
       const translationPromises = [];
-      
+
       if (englishOutput.empatheticResponse) {
-          translationPromises.push(
-              retryWithExponentialBackoff(() => 
-                  translationPrompt({ targetLanguage: languageCode, text: englishOutput.empatheticResponse })
-              ).then(res => finalResponse.empatheticResponse = res.output!)
-          );
+        translationPromises.push(
+          retryWithExponentialBackoff(() =>
+            translationPrompt({ targetLanguage: languageCode, text: englishOutput.empatheticResponse })
+          ).then(res => finalResponse.empatheticResponse = res.output!)
+        );
       }
 
       if (englishOutput.introductoryText) {
-          translationPromises.push(
-              retryWithExponentialBackoff(() => 
-                  translationPrompt({ targetLanguage: languageCode, text: englishOutput.introductoryText })
-              ).then(res => finalResponse.introductoryText = res.output!)
-          );
+        translationPromises.push(
+          retryWithExponentialBackoff(() =>
+            translationPrompt({ targetLanguage: languageCode, text: englishOutput.introductoryText })
+          ).then(res => finalResponse.introductoryText = res.output!)
+        );
       }
-      
+
       if (englishOutput.recommendations?.length > 0) {
         translationPromises.push(
           Promise.all(englishOutput.recommendations.map(rec =>
-            retryWithExponentialBackoff(() => 
+            retryWithExponentialBackoff(() =>
               translationPrompt({ targetLanguage: languageCode, text: rec })
             ).then(res => res.output!)
           )).then(translatedRecs => finalResponse.recommendations = translatedRecs)
@@ -245,7 +246,7 @@ const handleChatTurnFlow = ai.defineFlow(
       // This is a safe fallback to prevent the app from crashing and still provide a response.
       return { ...englishOutput, languageCode };
     }
-    
+
     return finalResponse;
   }
 );
