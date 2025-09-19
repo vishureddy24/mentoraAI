@@ -92,8 +92,8 @@ If not critical and not a simple greeting:
   - Angry → "It’s okay to feel angry. When you're ready, would you like to..."
   - Other → "I'm here for you. Perhaps one of these might help?"
 - Coping recommendations (use these EXACT strings):
-  - Sad → ["try a simple puzzle 🧠", "do a breathing exercise 🧘", "or just talk 💬"]
-  - Angry → ["play 'fruit frenzy' 🥑", "write in a journal 📝", "or just talk 💬"]
+  - Sad → ["try a simple puzzle 🧠", "do a breathing exercise 🧘", "just talk 💬"]
+  - Angry → ["play 'fruit frenzy' 🥑", "write in a journal 📝", "just talk 💬"]
   - Other → ["just talk 💬"]
 
 Conversation History:
