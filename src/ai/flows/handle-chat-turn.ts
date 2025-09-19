@@ -50,6 +50,10 @@ const HandleChatTurnOutputSchema = z.object({
 });
 export type HandleChatTurnOutput = z.infer<typeof HandleChatTurnOutputSchema>;
 
+// Create a Zod schema for the prompt output by omitting the languageCode
+const PromptOutputSchema = HandleChatTurnOutputSchema.omit({ languageCode: true });
+
+
 // ---------------- MAIN ENTRY ----------------
 
 export async function handleChatTurn(
@@ -64,7 +68,7 @@ export async function handleChatTurn(
 const consolidatedPrompt = ai.definePrompt({
   name: 'handleChatTurnPrompt',
   input: { schema: HandleChatTurnInputSchema },
-  output: { schema: Omit<HandleChatTurnOutput, 'languageCode'> },
+  output: { schema: PromptOutputSchema },
   prompt: `
 You are MentoraAI, an AI wellness companion. Always reply in warm, teen-friendly, empathetic language.
 
