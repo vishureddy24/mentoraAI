@@ -18,25 +18,32 @@ export async function retryWithExponentialBackoff<T>(
       try {
         return await fn();
       } catch (error: any) {
-        // The Gemini API error for overloaded models or rate limits, but the Genkit
-        // library may not expose the status code directly. We check the error message instead.
-        if (error.message && (error.message.includes('503') || error.message.toLowerCase().includes('model is overloaded'))) {
-            retries++;
+        // The Gemini API can sometimes return a 503 error when the model is overloaded
+        // or a 429 error for rate limiting. We check for these conditions in the error message.
+        const errorMessage = error.message?.toLowerCase() || '';
+        const isRetryableError = errorMessage.includes('503') || 
+                                 errorMessage.includes('429') || 
+                                 errorMessage.includes('model is overloaded') ||
+                                 errorMessage.includes('rate limit');
+
+        if (isRetryableError) {
+          retries++;
           if (retries >= maxRetries) {
             console.error('Max retries reached. Failing.');
             throw error;
           }
-          console.log(`Model overloaded or rate limited. Retrying in ${delay / 1000} seconds... (Attempt ${retries}/${maxRetries})`);
+          console.log(`Retryable error detected. Retrying in ${delay / 1000} seconds... (Attempt ${retries}/${maxRetries})`);
           await new Promise(resolve => setTimeout(resolve, delay));
           delay *= 2; // Double the delay for the next attempt
         } else {
-          // It's a different error (like a 429 quota error), so throw it immediately.
+          // For non-retryable errors, throw it immediately.
+          console.error('Non-retryable error:', error);
           throw error;
         }
       }
     }
   
-    // This should not be reachable if maxRetries > 0, but is here for type safety.
+    // This should not be reachable if maxRetries > 0, but is here for type safety and to satisfy TypeScript.
     throw new Error('Max retries reached. Failing.');
   }
   
