@@ -167,18 +167,31 @@ const handleChatTurnFlow = ai.defineFlow(
     );
     const englishOutput = result.output;
 
-    // If there's no valid output, return a default safe response
+    // If there's no valid output from the main prompt, return a default safe response
     if (!englishOutput) {
-        return {
+        const fallbackResponse = {
             isCritical: false,
             empatheticResponse: 'Sorry, something went wrong. Could you please rephrase?',
             introductoryText: '',
             recommendations: [],
             languageCode: 'en',
         };
+        // If the original language was not English, try to translate the fallback message
+        if (languageCode !== 'en') {
+            try {
+                const translatedFallback = await retryWithExponentialBackoff(() =>
+                    translationPrompt({ targetLanguage: languageCode, text: fallbackResponse.empatheticResponse })
+                );
+                fallbackResponse.empatheticResponse = translatedFallback.output!;
+                fallbackResponse.languageCode = languageCode;
+            } catch (err) {
+                console.error("Translation error on fallback -> returning English:", err);
+            }
+        }
+        return fallbackResponse;
     }
 
-    // If the message is critical, return immediately without translation
+    // If the message is critical, return immediately (safetyNetProtocol will handle translation)
     if (englishOutput.isCritical) {
       return { ...englishOutput, languageCode };
     }
@@ -222,6 +235,7 @@ const handleChatTurnFlow = ai.defineFlow(
     } catch (err) {
       console.error("Translation error -> fallback to English:", err);
       // If translation fails, return the untranslated English object but with the language code.
+      // This is a safe fallback to prevent the app from crashing.
       return { ...englishOutput, languageCode };
     }
     
