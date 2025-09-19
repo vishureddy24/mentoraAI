@@ -64,7 +64,7 @@ export async function handleChatTurn(
 const consolidatedPrompt = ai.definePrompt({
   name: 'handleChatTurnPrompt',
   input: { schema: HandleChatTurnInputSchema },
-  output: { schema: Omit<HandleChatTurnOutput, ['languageCode']> },
+  output: { schema: Omit<HandleChatTurnOutput, 'languageCode'> },
   prompt: `
 You are MentoraAI, an AI wellness companion. Always reply in warm, teen-friendly, empathetic language.
 
@@ -127,7 +127,7 @@ const translationPrompt = ai.definePrompt({
   name: 'translationPrompt',
   input: { schema: z.object({ targetLanguage: z.string(), text: z.string() }) },
   output: { schema: z.string() },
-  prompt: `Translate the following text to {{targetLanguage}}.
+  prompt: `Translate the following English text to the language with this ISO 639-1 code: {{targetLanguage}}.
 
 Text: {{{text}}}`,
 });
@@ -164,34 +164,31 @@ const handleChatTurnFlow = ai.defineFlow(
     let finalResponse: HandleChatTurnOutput = {
       ...englishOutput,
       languageCode: languageCode,
-      empatheticResponse: '',
-      introductoryText: '',
-      recommendations: [],
     };
 
     try {
       // Use sequential translation for better reliability
       if (englishOutput.empatheticResponse) {
-        const t = await retryWithExponentialBackoff(() => 
+        const translationResult = await retryWithExponentialBackoff(() => 
           translationPrompt({ targetLanguage: languageCode, text: englishOutput.empatheticResponse })
         );
-        finalResponse.empatheticResponse = t.output!;
+        finalResponse.empatheticResponse = translationResult.output!;
       }
 
       if (englishOutput.introductoryText) {
-        const t = await retryWithExponentialBackoff(() => 
+        const translationResult = await retryWithExponentialBackoff(() => 
           translationPrompt({ targetLanguage: languageCode, text: englishOutput.introductoryText })
         );
-        finalResponse.introductoryText = t.output!;
+        finalResponse.introductoryText = translationResult.output!;
       }
 
       if (englishOutput.recommendations?.length) {
         const translatedRecs: string[] = [];
         for (const rec of englishOutput.recommendations) {
-           const t = await retryWithExponentialBackoff(() => 
+           const translationResult = await retryWithExponentialBackoff(() => 
             translationPrompt({ targetLanguage: languageCode, text: rec })
           );
-          translatedRecs.push(t.output!);
+          translatedRecs.push(translationResult.output!);
         }
         finalResponse.recommendations = translatedRecs;
       }
