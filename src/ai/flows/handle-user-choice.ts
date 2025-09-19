@@ -2,25 +2,33 @@
 
 /**
  * @fileOverview This file defines a Genkit flow for handling user choices from the chat interface.
- *
- * - handleUserChoice - An asynchronous function that takes a choice action and returns the appropriate activity content.
- * - HandleUserChoiceInput - The input type for the handleUserChoice function.
- * - HandleUserChoiceOutput - The return type for the handleUserChoice function.
+ * It now supports multilingual responses by translating the final output.
  */
 
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
+import { retryWithExponentialBackoff } from '../utils';
 
+// Input now accepts a languageCode to determine the response language.
 const HandleUserChoiceInputSchema = z.object({
-  action: z.string().describe('The action identifier for the user\'s choice (e.g., \'start_puzzle\').'),
+  action: z.string().describe("The action identifier for the user's choice (e.g., 'start_puzzle')."),
+  languageCode: z.string().optional().default('en').describe("The ISO 639-1 code for the user's language (e.g., 'en', 'te')."),
 });
 export type HandleUserChoiceInput = z.infer<typeof HandleUserChoiceInputSchema>;
 
+// Output remains the same.
 const HandleUserChoiceOutputSchema = z.object({
   response: z.string().describe('The initial content or response for the chosen activity.'),
-  activity: z.string().optional().describe('An identifier for the activity component to render, if any (e.g., \'puzzles\').'),
+  activity: z.string().optional().describe("An identifier for the activity component to render, if any (e.g., 'puzzles')."),
 });
 export type HandleUserChoiceOutput = z.infer<typeof HandleUserChoiceOutputSchema>;
+
+const translationPrompt = ai.definePrompt({
+    name: 'choiceTranslationPrompt',
+    input: { schema: z.object({ targetLanguage: z.string(), text: z.string() }) },
+    output: { schema: z.string() },
+    prompt: `Translate the following English text to the language with this ISO 639-1 code '{{targetLanguage}}': "{{text}}"`,
+});
 
 
 const handleUserChoiceFlow = ai.defineFlow(
@@ -31,6 +39,8 @@ const handleUserChoiceFlow = ai.defineFlow(
   },
   async (input) => {
     let result;
+
+    // The core logic remains in English for stability and ease of maintenance.
     switch (input.action) {
       case 'start_breathing':
         result = {
@@ -46,13 +56,13 @@ const handleUserChoiceFlow = ai.defineFlow(
         break;
       case 'start_fruit_slicer':
         result = {
-          response: "Let's play Fruit Frenzy! Tap the fruit, but not the bombs. The game will open in a new tab.",
+          response: "Let's play Fruit Frenzy! Tap the fruit, but not the bombs.",
           activity: 'fruit-slicer',
         };
         break;
       case 'start_journaling':
         result = {
-          response: "This is a safe space to let it all out. Write down whatever is on your mind. It will be securely deleted when you're done.",
+          response: "This is a safe space to let it all out. Write down whatever is on your mind.",
           activity: 'journal',
         };
         break;
@@ -67,12 +77,27 @@ const handleUserChoiceFlow = ai.defineFlow(
         };
         break;
     }
-    console.log("--> BACKEND SENDING:", result);
+
+    // This is the crucial final step: translate the response if the user's language is not English.
+    if (input.languageCode !== 'en' && result.response) {
+        console.log(`--> Translating response from English to '${input.languageCode}'...`);
+        try {
+            const translatedResult = await retryWithExponentialBackoff(async () =>
+              translationPrompt({ targetLanguage: input.languageCode!, text: result.response })
+            );
+            result.response = translatedResult.output!;
+        } catch (error) {
+            console.error("--> ERROR during translation:", error);
+            // If translation fails for any reason, the original English text will be sent as a safe fallback.
+        }
+    }
+    
+    console.log("--> BACKEND SENDING (Final):", result);
     return result;
   }
 );
 
-
+// The exported function remains the same.
 export async function handleUserChoice(input: HandleUserChoiceInput): Promise<HandleUserChoiceOutput> {
   return handleUserChoiceFlow(input);
 }

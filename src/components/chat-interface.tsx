@@ -46,6 +46,7 @@ export function ChatInterface() {
   ]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [lastLanguageCode, setLastLanguageCode] = useState('en');
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
 
@@ -68,7 +69,7 @@ export function ChatInterface() {
     setIsLoading(true);
 
     try {
-      const result = await handleUserChoice({ action });
+      const result = await handleUserChoice({ action, languageCode: lastLanguageCode });
       console.log("--> FRONTEND RECEIVED:", result);
 
       const newModelMessages: Message[] = [{
@@ -81,7 +82,14 @@ export function ChatInterface() {
         console.log("--> SETTING ACTIVITY TO:", result.activity);
         if (result.activity === 'fruit-slicer') {
           window.open('/fruit-slicer', '_blank');
-          setMessages(prev => [...prev, ...newModelMessages]);
+           const followupMessage : Message = {
+            id: Date.now().toString() + '-followup',
+            role: 'model',
+            content: "The game will open in a new tab. Have fun!"
+          }
+           newModelMessages.push(followupMessage);
+           setMessages(prev => [...prev, ...newModelMessages]);
+
         } else {
           const ActivityComponent = activityMap[result.activity];
           if (ActivityComponent) {
@@ -133,6 +141,10 @@ export function ChatInterface() {
         }));
       
       const result = await handleChatTurn({ message: userInput, history: history.slice(0, -1) });
+      
+      if (result.languageCode) {
+        setLastLanguageCode(result.languageCode);
+      }
 
       if (result.isCritical) {
         const safetyResponse = await safetyNetProtocol({ languageCode: result.languageCode });
