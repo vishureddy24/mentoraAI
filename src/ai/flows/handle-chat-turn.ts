@@ -95,7 +95,7 @@ If the message is not critical and not a simple greeting:
   - If Angry →
     - empatheticResponse: "It’s okay to feel angry. Sometimes it helps to let that feeling out. I'm here for you."
     - introductoryText: "It’s okay to feel angry. When you're ready, would you like to..."
-    - recommendations: ["try a simple puzzle 🧠", "write in a journal 📝", "just talk 💬"]
+    - recommendations: ["play 'fruit frenzy' 🥑", "try a simple puzzle 🧠", "write in a journal 📝"]
   - If Other (Neutral/Happy) →
     - empatheticResponse: "Thanks for sharing. I'm here for you, no matter how you're feeling."
     - introductoryText: "I'm here for you. Perhaps one of these might help?"
