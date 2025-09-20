@@ -81,21 +81,26 @@ If the user message contains clear, unambiguous, and high-intent keywords of sel
 Return: { isCritical: true, empatheticResponse: "", introductoryText: "", recommendations: [] }
 
 **Step 2 – Greeting Check**
-If the conversation has just started and the user message is a simple greeting like "Hi", "Hello", "Hey", "Namaste", "Namaskaram", etc. and NOT expressing any emotion →
+If the conversation has just started AND the user message is a simple greeting like "Hi", "Hello", "Hey", "Namaste", "Namaskaram", etc. AND is NOT expressing any emotion →
 Return: { isCritical: false, empatheticResponse: "Hi there! I'm MentoraAI, your personal companion. How are you feeling today?", introductoryText: "", recommendations: [] }
 
 **Step 3 – Empathetic Response + Coping**
-If not critical and not a simple greeting:
-- Respond in a caring tone. Validate their feelings. Emojis are allowed.
-- Classify emotion: Sad / Angry / Neutral / Happy.
-- Intro text depends on emotion:
-  - Sad → "I'm here with you. If you feel up to it, would you like to..."
-  - Angry → "It’s okay to feel angry. When you're ready, would you like to..."
-  - Other → "I'm here for you. Perhaps one of these might help?"
-- Coping recommendations (use these EXACT strings):
-  - Sad → ["try a simple puzzle 🧠", "do a breathing exercise 🧘", "just talk 💬"]
-  - Angry → ["try a simple puzzle 🧠", "write in a journal 📝", "just talk 💬"]
-  - Other → ["just talk 💬"]
+If the message is not critical and not a simple greeting:
+- First, classify the user's emotion: Sad / Angry / Neutral / Happy.
+- Based on the emotion, generate the response:
+  - If Sad →
+    - empatheticResponse: "I hear you. It sounds like you're feeling sad today. I'm here to listen if you want to talk more."
+    - introductoryText: "I'm here with you. If you feel up to it, would you like to..."
+    - recommendations: ["try a simple puzzle 🧠", "do a breathing exercise 🧘", "just talk 💬"]
+  - If Angry →
+    - empatheticResponse: "It’s okay to feel angry. Sometimes it helps to let that feeling out. I'm here for you."
+    - introductoryText: "It’s okay to feel angry. When you're ready, would you like to..."
+    - recommendations: ["try a simple puzzle 🧠", "write in a journal 📝", "just talk 💬"]
+  - If Other (Neutral/Happy) →
+    - empatheticResponse: "Thanks for sharing. I'm here for you, no matter how you're feeling."
+    - introductoryText: "I'm here for you. Perhaps one of these might help?"
+    - recommendations: ["just talk 💬"]
+- Use emojis where appropriate.
 
 Conversation History:
 {{#each history}}
@@ -219,6 +224,7 @@ const handleChatTurnFlow = ai.defineFlow(
 
     } catch (err) {
       console.error("Translation error -> falling back to English response:", err);
+      // If translation fails, return the English version with the correct language code.
       return { ...englishOutput, languageCode };
     }
 
